@@ -1,0 +1,29 @@
+# 環境變數與機敏設定
+.env
+.env.*
+!.env.example
+
+# 原始 ERP 範例報表與產出資料 (不上傳至 GitHub)
+rowdate/
+output/
+output/*
+*.xlsx
+*.xls
+*.csv
+*.pdf
+
+# 依賴套件、虛擬環境與打包產出物
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+Minerva_Dossier_Standalone.html
+src/mobile/raw_pdf_assets.js
+scripts/raw_pdf_assets.js
+scripts/temp_*.json
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

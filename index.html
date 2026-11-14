@@ -1,0 +1,2248 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' blob:; style-src 'self' 'unsafe-inline'; img-src data:; connect-src 'none';">
+  <title>Minerva-ETL | 專櫃合約評估與續約決策系統 (v2.0 手機加密版)</title>
+  <style>
+    :root {
+      --primary: #1e3a8a;
+      --primary-light: #3b82f6;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); line-height: 1.5; padding: 24px; }
+    .container { max-width: 1200px; margin: 0 auto; }
+
+    header { margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border); padding-bottom: 16px; }
+    h1 { font-size: 24px; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+    .badge-offline { background: #dcfce7; color: #166534; font-size: 12px; font-weight: 600; padding: 4px 8px; border-radius: 6px; }
+
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .card-title { font-size: 16px; font-weight: 700; color: var(--primary); margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
+
+    .drop-zone {
+      border: 2px dashed #94a3b8;
+      border-radius: var(--radius);
+      padding: 28px;
+      text-align: center;
+      background: #f1f5f9;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .drop-zone.dragover { border-color: var(--primary-light); background: #e0f2fe; }
+    .drop-zone p { color: var(--text-muted); font-size: 13px; margin-top: 6px; }
+
+    .status-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 16px; }
+    .status-item { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 10px; border-radius: 6px; background: #f8fafc; border: 1px solid var(--border); }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: #cbd5e1; flex-shrink: 0; }
+    .dot.ready { background: var(--success); }
+
+        .step2-container {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .step2-row1 {
+      display: grid;
+      grid-template-columns: 2.2fr 1fr 1.4fr;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    .step2-row2 {
+      width: 100%;
+    }
+    .step2-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      align-items: center;
+      flex-wrap: wrap;
+      padding-top: 14px;
+      border-top: 1px dashed var(--border);
+    }
+    .field-group { display: flex; flex-direction: column; gap: 6px; }
+    label { font-size: 13px; font-weight: 600; color: var(--text-muted); }
+    select, input { padding: 9px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; background: #fff; width: 100%; }
+
+    .version-checkbox-group {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #f8fafc;
+      min-height: 48px;
+      align-items: center;
+      width: 100%;
+    }
+    .version-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      background: #fff;
+      border: 1px solid #cbd5e1;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .version-label input[type="checkbox"] { cursor: pointer; margin: 0; }
+    .version-label.checked { background: #dbeafe; border-color: #3b82f6; color: #1e40af; font-weight: 600; box-shadow: 0 1px 3px rgba(59,130,246,0.15); }
+    .version-label:hover { border-color: #94a3b8; }
+
+    .btn { padding: 10px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: 0.2s; display: inline-flex; align-items: center; gap: 6px; height: 40px; white-space: nowrap; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: #1e40af; }
+    .btn-primary:disabled { background: #94a3b8; cursor: not-allowed; }
+    .btn-mobile { background: #0284c7; color: #fff; }
+    .btn-mobile:hover { background: #0369a1; }
+    .btn-mobile:disabled { background: #94a3b8; cursor: not-allowed; }
+    .btn-pdf { background: #059669; color: #fff; }
+    .btn-pdf:hover { background: #047857; }
+    .btn-pdf:disabled { background: #94a3b8; cursor: not-allowed; }
+
+    /* PDF 說明彈窗 */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15, 23, 42, 0.7);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal-box {
+      background: #fff;
+      border-radius: 12px;
+      max-width: 520px;
+      width: 90%;
+      padding: 24px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+    }
+    .modal-title { font-size: 17px; font-weight: 700; color: #0f172a; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .modal-body { font-size: 13px; color: #334155; line-height: 1.6; margin-bottom: 20px; }
+    .modal-info-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin: 12px 0; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 10px; }
+
+    .warning-banner {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-left: 4px solid var(--warning);
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      color: #92400e;
+      display: none;
+    }
+    .warning-banner ul { margin-left: 20px; margin-top: 4px; }
+
+    /* 決策展示卡 */
+    .dashboard { display: none; }
+    .advisory-hero {
+      background: linear-gradient(135deg, #1e3a8a, #0f172a);
+      color: #fff;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .hero-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .hero-badge { background: #fde047; color: #854d0e; font-weight: 800; font-size: 12px; padding: 4px 10px; border-radius: 12px; }
+    .hero-action { font-size: 22px; font-weight: 800; color: #fff; margin-bottom: 12px; }
+    .hero-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; background: rgba(255,255,255,0.08); border-radius: 8px; padding: 14px; margin-bottom: 14px; }
+    .hero-item span { font-size: 12px; color: #93c5fd; display: block; margin-bottom: 4px; }
+    .hero-item strong { font-size: 18px; color: #fde047; font-weight: 700; }
+    .hero-points { background: rgba(0,0,0,0.2); border-radius: 8px; padding: 12px 16px; font-size: 13px; line-height: 1.6; }
+    .hero-points ul { margin-left: 18px; }
+
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+    .kpi-card { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 16px; text-align: center; }
+    .kpi-label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+    .kpi-val { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+
+    .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+    .tab-btn { padding: 8px 16px; border-radius: 6px; border: 1px solid var(--border); background: #f1f5f9; cursor: pointer; font-size: 13px; font-weight: 600; }
+    .tab-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .tab-pane { display: none; overflow-x: auto; max-height: 340px; }
+    .tab-pane.active { display: block; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 8px 12px; border: 1px solid var(--border); text-align: left; }
+    th { background: #f8fafc; font-weight: 600; position: sticky; top: 0; z-index: 1; }
+    tr:nth-child(even) { background: #fdfdfd; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div>
+      <h1>🏛️ Minerva-ETL 專櫃合約評估與續約決策系統</h1>
+      <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">招商續約精算模型 ｜ 具體抽成調幅與保底建議 ｜ 手機端 AES-256 加密直讀報告</p>
+    </div>
+    <span class="badge-offline">🛡️ 100% 離線純前端執行</span>
+  </header>
+
+  <!-- 警示橫幅 -->
+  <div class="warning-banner" id="warningBanner">
+    <strong>⚠️ 資料完整度檢驗提示：</strong>
+    <ul id="warningList"></ul>
+  </div>
+
+  <!-- 上傳區 -->
+  <div class="card">
+    <div class="card-title">📂 步驟 1：核心報表匯入區 (拖入合約清單、抽成表、代扣款或實扣明細表、結帳彙總表)</div>
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" multiple accept=".xlsx,.csv" style="display: none;">
+      <div style="font-size: 32px;">📑</div>
+      <strong>點擊此處或將 ERP 報表拖放至此</strong>
+      <p>支援：合約狀態清單、專櫃契約抽成報表、專櫃扣款明細表（或契約代扣款表）、專櫃結帳彙總表</p>
+    </div>
+
+    <div class="status-grid">
+      <div class="status-item"><div class="dot" id="dot-contracts"></div>合約狀態清單：<span id="txt-contracts">未載入</span></div>
+      <div class="status-item"><div class="dot" id="dot-commissions"></div>專櫃抽成報表：<span id="txt-commissions">未載入</span></div>
+      <div class="status-item"><div class="dot" id="dot-deductions"></div>專櫃扣款表：<span id="txt-deductions">未載入</span></div>
+      <div class="status-item"><div class="dot" id="dot-monthly"></div>專櫃結帳彙總：<span id="txt-monthly">未載入</span></div>
+    </div>
+  </div>
+
+  <!-- 篩選與操作 -->
+  <div class="card">
+    <div class="card-title">🎯 步驟 2：選擇專櫃、期別與設定高管密碼</div>
+    <div class="step2-container">
+      <!-- 第一列：三欄基本參數設定 -->
+      <div class="step2-row1">
+        <div class="field-group">
+          <label for="selectCounter">指定目標專櫃</label>
+          <select id="selectCounter" disabled>
+            <option value="">請先載入合約清單報表...</option>
+          </select>
+        </div>
+
+        <div class="field-group">
+          <label for="inputArea">櫃位坪數 (選填)</label>
+          <input type="text" id="inputArea" placeholder="例: 15 坪" value="">
+        </div>
+
+        <div class="field-group">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+            <label for="reportPassword" id="lblPasswordTitle">🔒 設定高管解鎖密碼</label>
+            <label style="display: inline-flex; align-items: center; gap: 5px; font-size: 12px; cursor: pointer; color: #2563eb; font-weight: 600; user-select: none;">
+              <input type="checkbox" id="chkEncrypt" checked style="cursor: pointer; width: auto; margin: 0;">
+              啟用加密
+            </label>
+          </div>
+          <input type="text" id="reportPassword" value="" placeholder="請輸入自訂解鎖密碼">
+        </div>
+      </div>
+
+      <!-- 第二列：合約期別勾選專區（橫向水平自然展開） -->
+      <div class="step2-row2">
+        <div class="field-group">
+          <label style="display: flex; justify-content: space-between; align-items: center;">
+            <span>合約期別（版本）- 勾選納入評比之期別</span>
+            <span style="font-size: 11px; font-weight: normal; color: var(--text-muted);">（可複選納入跨期綜合評估）</span>
+          </label>
+          <div class="version-checkbox-group" id="versionGroup">
+            <span style="font-size: 13px; color: var(--text-muted);">請先選擇專櫃...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 第三列：操作按鈕區（水平對齊平鋪） -->
+      <div class="step2-actions">
+        <button class="btn btn-pdf" id="btnExportPdf" disabled>📄 下載 LINE 加密 PDF</button>
+        <button class="btn btn-mobile" id="btnExportMobile" disabled>📱 匯出高管手機加密報告 (HTML)</button>
+        <button class="btn btn-primary" id="btnExportExcel" disabled>📥 匯出 Excel 報表</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 儀表板區域 -->
+  <div class="dashboard" id="dashboard">
+    <!-- 頂部高管精算決策卡 -->
+    <div class="advisory-hero">
+      <div class="hero-top">
+        <span class="hero-badge">招商續約具體精算決策</span>
+        <span id="heroTarget" style="font-size: 14px; color: #93c5fd;"></span>
+      </div>
+      <div class="hero-action" id="heroAction">--</div>
+      <div class="hero-grid">
+        <div class="hero-item">
+          <span>建議抽成率調整</span>
+          <strong id="heroRate">--</strong>
+        </div>
+        <div class="hero-item">
+          <span>建議月包底金額</span>
+          <strong id="heroBaseRent">--</strong>
+        </div>
+        <div class="hero-item">
+          <span>抽成模式策略</span>
+          <strong id="heroStrategy" style="font-size:15px; color:#fff;">--</strong>
+        </div>
+      </div>
+      <div class="hero-points">
+        <strong>🎯 招商談判三大作戰籌碼 (Talking Points)：</strong>
+        <ul id="heroPointsList"></ul>
+      </div>
+      <!-- 判斷評比依據：營收 / 費用 / 總實收 去年同期比 (YoY) 視覺圖表 -->
+      <div id="heroChartBox" style="margin-top: 16px; background: #ffffff; border: 1px solid #cbd5e1; border-top: 3px solid #051c2c; border-radius: 6px; padding: 14px 16px; display: none; color: #0f172a;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
+          <strong style="font-size: 13px; color: #051c2c; letter-spacing: 0.3px;">📊 評比依據：營收 / 費用 / 商場總實收 去年同期比 (YoY)</strong>
+          <div id="heroYoYBadges" style="display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px;"></div>
+        </div>
+        <div id="heroChartSvgWrap" style="width: 100%; overflow-x: auto;"></div>
+      </div>
+    </div>
+
+    <!-- 財務概況 KPI -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">納入評估月份數</div>
+        <div class="kpi-val" id="kpiMonths">--</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">期間實扣總額</div>
+        <div class="kpi-val" id="kpiDeductions" style="color: #2563eb;">--</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">月均扣款金額</div>
+        <div class="kpi-val" id="kpiAvgDeduct">--</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">合約有效涵蓋起訖</div>
+        <div class="kpi-val" id="kpiPeriod" style="font-size: 14px; line-height: 1.8;">--</div>
+      </div>
+    </div>
+
+    <!-- 分頁預覽 -->
+    <div class="card">
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab(0)">分頁 1：條件明細預覽</button>
+        <button class="tab-btn" onclick="switchTab(1)">分頁 2：營收與費用明細預覽</button>
+        <button class="tab-btn" onclick="switchTab(2)">分頁 3：續約建議評分卡預覽</button>
+      </div>
+
+      <div class="tab-pane active" id="pane-0">
+        <table id="tbl-terms"></table>
+      </div>
+      <div class="tab-pane" id="pane-1">
+        <table id="tbl-financials"></table>
+      </div>
+      <div class="tab-pane" id="pane-2">
+        <table id="tbl-scorecard"></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="node_modules/xlsx/dist/xlsx.full.min.js"></script>
+<script src="node_modules/pdf-lib/dist/pdf-lib.min.js"></script>
+<script src="src/mobile/pdf_encrypt_bundle.js"></script>
+<script src="src/mobile/raw_pdf_assets.js"></script>
+<script>
+  const state = {
+    tables: { contracts: [], commissions: [], deductions: [], monthly: [] },
+    currentCounter: null,
+    selectedVersions: [],
+    dossier: null,
+    advisory: null
+  };
+
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+
+  dropZone.addEventListener('click', () => fileInput.click());
+  dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    handleFiles(e.dataTransfer.files);
+  });
+  fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+  function handleFiles(files) {
+    if (!files || files.length === 0) return;
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const data = new Uint8Array(e.target.result);
+        const wb = XLSX.read(data, { type: 'array' });
+        processWorkbook(wb, file.name);
+      };
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  function sniffType(sheet, fileName) {
+    const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1:Z50');
+    let headerText = fileName + ' ';
+    const first10Rows = [];
+
+    for (let R = range.s.r; R <= Math.min(range.e.r, 9); ++R) {
+      const rowCells = [];
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const cell = sheet[XLSX.utils.encode_cell({ r: R, c: C })];
+        if (cell && cell.v !== undefined) {
+          const val = String(cell.v).trim();
+          if (val) {
+            rowCells.push({ c: C, text: val });
+            headerText += val + ' ';
+          }
+        }
+      }
+      first10Rows.push({ rowIdx: R, cells: rowCells });
+    }
+
+    if (
+      headerText.includes('結帳彙總表') || headerText.includes('結帳匯總表') ||
+      headerText.includes('結帳彙總') || headerText.includes('結帳匯總') ||
+      (headerText.includes('銷貨淨額') && (headerText.includes('包底抽成不足') || headerText.includes('應收帳款')))
+    ) {
+      let headerRow = 4;
+      for (const r of first10Rows) {
+        if (r.cells.some(c => c.text.includes('銷貨淨額') || c.text.includes('包底抽成不足'))) {
+          headerRow = r.rowIdx; break;
+        }
+      }
+      return { type: 'MONTHLY', headerRow, isDouble: true };
+    }
+
+    if (
+      headerText.includes('專櫃契約抽成報表') || headerText.includes('契約抽成') ||
+      (headerText.includes('抽成別') && (headerText.includes('抽成類別名稱') || headerText.includes('正品') || headerText.includes('90折')))
+    ) {
+      let headerRow = 4;
+      for (const r of first10Rows) {
+        if (r.cells.some(c => c.text.includes('抽成類別名稱') || c.text.includes('正品'))) {
+          headerRow = r.rowIdx; break;
+        }
+      }
+      return { type: 'COMMISSIONS', headerRow, isDouble: false };
+    }
+
+    if (
+      headerText.includes('合約狀態清單') || headerText.includes('合約狀態') ||
+      (headerText.includes('租戶狀況') && headerText.includes('版本編號'))
+    ) {
+      let headerRow = 4;
+      for (const r of first10Rows) {
+        if (r.cells.some(c => c.text.includes('版本編號') || c.text.includes('租戶狀況'))) {
+          headerRow = r.rowIdx; break;
+        }
+      }
+      return { type: 'CONTRACTS', headerRow, isDouble: false };
+    }
+
+    if (
+      headerText.includes('扣款明細表') || headerText.includes('專櫃扣款明細表') ||
+      headerText.includes('專櫃契約代扣款報表') || headerText.includes('代扣款報表') ||
+      headerText.includes('扣款明細') ||
+      (headerText.includes('收銀機租借費') && (headerText.includes('管理費') || headerText.includes('結帳年月')))
+    ) {
+      let headerRow = 2;
+      let isDetailMatrix = false;
+      for (const r of first10Rows) {
+        if (r.cells.some(c => c.text.includes('合約編號') || c.text.includes('A01/檔期') || c.text.includes('B01/收銀機'))) {
+          headerRow = r.rowIdx;
+          isDetailMatrix = true;
+          break;
+        } else if (r.cells.some(c => c.text.includes('扣款項目名稱') || c.text.includes('扣款類別'))) {
+          headerRow = r.rowIdx;
+          break;
+        }
+      }
+      return { type: 'DEDUCTIONS', headerRow, isDouble: false, isDetailMatrix };
+    }
+
+    return { type: 'UNKNOWN', headerRow: 0, isDouble: false };
+  }
+
+  function processWorkbook(wb, fileName) {
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const info = sniffType(sheet, fileName);
+
+    if (info.type === 'MONTHLY') {
+      state.tables.monthly = parseSheet(sheet, info.headerRow, true);
+      updateStatus('monthly', `已載入 (${state.tables.monthly.length} 筆)`);
+    } else if (info.type === 'COMMISSIONS') {
+      state.tables.commissions = parseSheet(sheet, info.headerRow, false);
+      updateStatus('commissions', `已載入 (${state.tables.commissions.length} 筆)`);
+    } else if (info.type === 'CONTRACTS') {
+      state.tables.contracts = parseSheet(sheet, info.headerRow, false);
+      updateStatus('contracts', `已載入 (${state.tables.contracts.length} 筆)`);
+      populateCounterDropdown();
+    } else if (info.type === 'DEDUCTIONS') {
+      state.tables.deductions = parseSheet(sheet, info.headerRow, false);
+      const label = info.isDetailMatrix ? '明細表' : '約定表';
+      updateStatus('deductions', `已載入 (${state.tables.deductions.length} 筆${label})`);
+    }
+
+    if (state.tables.contracts.length > 0) {
+      document.getElementById('selectCounter').disabled = false;
+    }
+
+    checkDataIntegrity();
+  }
+
+  function updateStatus(id, text) {
+    document.getElementById(`dot-${id}`).classList.add('ready');
+    document.getElementById(`txt-${id}`).innerText = text;
+  }
+
+  function parseSheet(sheet, headerRowIdx, isDouble = false) {
+    const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1:Z5000');
+    const headers = {};
+    if (isDouble) {
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const t = sheet[XLSX.utils.encode_cell({ r: headerRowIdx, c: C })];
+        const s = sheet[XLSX.utils.encode_cell({ r: headerRowIdx + 1, c: C })];
+        const tv = t ? String(t.v).trim() : '';
+        const sv = s ? String(s.v).trim() : '';
+        headers[C] = tv && sv ? `${tv}_${sv}` : (sv || tv || `C_${C}`);
+      }
+    } else {
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const c = sheet[XLSX.utils.encode_cell({ r: headerRowIdx, c: C })];
+        headers[C] = c ? String(c.v).trim() : `C_${C}`;
+      }
+    }
+    const start = isDouble ? headerRowIdx + 2 : headerRowIdx + 1;
+    const rows = [];
+    for (let R = start; R <= range.e.r; ++R) {
+      const row = {};
+      let has = false;
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const cell = sheet[XLSX.utils.encode_cell({ r: R, c: C })];
+        const val = cell !== undefined && cell.v !== undefined ? cell.v : '';
+        if (val !== '') has = true;
+        row[headers[C]] = val;
+      }
+      if (has) rows.push(row);
+    }
+    return rows;
+  }
+
+  function checkDataIntegrity() {
+    const warnings = [];
+    const banner = document.getElementById('warningBanner');
+    const list = document.getElementById('warningList');
+
+    if (state.tables.monthly.length > 0) {
+      const anyHasId = state.tables.monthly.some(r => r['專櫃編號'] && String(r['專櫃編號']).trim() !== '');
+      if (!anyHasId) {
+        warnings.push('【專櫃結帳彙總表】之「專櫃編號」欄位全數為空（脫敏資料），無法按櫃位對齊月結真實營收。');
+      }
+    }
+
+    if (warnings.length > 0) {
+      list.innerHTML = warnings.map(w => `<li>${w}</li>`).join('');
+      banner.style.display = 'block';
+    } else {
+      banner.style.display = 'none';
+    }
+  }
+
+  function populateCounterDropdown() {
+    const sel = document.getElementById('selectCounter');
+    sel.innerHTML = '<option value="">-- 請選擇專櫃 --</option>';
+    const map = new Map();
+    state.tables.contracts.forEach(r => {
+      const id = String(r['專櫃編號'] || '').trim().padStart(5, '0');
+      if (id && id !== '00000') {
+        const name = r['專櫃名稱'] || `專櫃 ${id}`;
+        map.set(id, name);
+      }
+    });
+
+    Array.from(map.entries()).sort((a,b) => a[0].localeCompare(b[0])).forEach(([id, name]) => {
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.innerText = `[${id}] ${name}`;
+      sel.appendChild(opt);
+    });
+  }
+
+  document.getElementById('selectCounter').addEventListener('change', (e) => {
+    const cId = e.target.value;
+    const group = document.getElementById('versionGroup');
+    group.innerHTML = '';
+    state.selectedVersions = [];
+
+    if (!cId) {
+      group.innerHTML = '<span style="font-size: 13px; color: var(--text-muted);">請先選擇專櫃...</span>';
+      return;
+    }
+
+    const contracts = state.tables.contracts.filter(c => String(c['專櫃編號'] || '').padStart(5, '0') === cId);
+    contracts.sort((a,b) => Number(b['版本編號']) - Number(a['版本編號']));
+
+    contracts.forEach((c, idx) => {
+      const ver = String(c['版本編號'] || '1');
+      const st = c['租戶狀況'] || '營運中';
+
+      const label = document.createElement('label');
+      label.className = 'version-label' + (idx === 0 ? ' checked' : '');
+
+      const chk = document.createElement('input');
+      chk.type = 'checkbox';
+      chk.value = ver;
+      if (idx === 0) {
+        chk.checked = true;
+        state.selectedVersions.push(ver);
+      }
+
+      chk.addEventListener('change', (ev) => {
+        if (ev.target.checked) {
+          state.selectedVersions.push(ver);
+          label.classList.add('checked');
+        } else {
+          state.selectedVersions = state.selectedVersions.filter(v => v !== ver);
+          label.classList.remove('checked');
+        }
+        runEvaluation();
+      });
+
+      label.appendChild(chk);
+      label.appendChild(document.createTextNode(` 第 ${ver} 期 (${st})`));
+      group.appendChild(label);
+    });
+
+    runEvaluation();
+  });
+
+  function parseDate(val) {
+    if (!val) return '';
+    const str = String(val).trim();
+    if (/^\d{5}$/.test(str)) {
+      const ms = (parseInt(str, 10) - 25569) * 86400 * 1000;
+      const d = new Date(ms);
+      if (!isNaN(d.getTime())) {
+        return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+      }
+    }
+    return str.replace(/[\/\.]/g, '-');
+  }
+
+  function safeNum(val) {
+    if (!val) return 0;
+    const n = parseFloat(String(val).replace(/,/g, '').trim());
+    return isNaN(n) ? 0 : n;
+  }
+
+  // 續約招商決策精算邏輯
+  function computeAdvisory(dossier, allContracts) {
+  const dossierMeta = dossier.meta || {};
+  const terms = dossier.terms || {};
+  const financials = {
+    totalSales: dossier.totalSales || 0,
+    totalCommission: dossier.totalComm || 0,
+    totalDeductions: dossier.totalDeduct || 0,
+    monthlyRecords: dossier.records || [],
+    shortfallCount: dossier.shortfallCount
+  };
+  return computeLeasingAdvisory(dossierMeta, terms, financials, allContracts);
+}
+
+function computeLeasingAdvisory(dossierMeta, terms, financials, counterContracts = []) {
+  const totalSales = financials.totalSales || 0;
+  const totalCommission = financials.totalCommission || 0;
+  const monthlyRecords = financials.monthlyRecords || [];
+  const monthCount = monthlyRecords.length || 1;
+  const avgMonthlySales = totalSales > 0 ? Math.round(totalSales / monthCount) : 0;
+  const totalDeductions = financials.totalDeductions || 0;
+  const avgMonthlyDeductions = totalDeductions > 0 ? Math.round(totalDeductions / monthCount) : 0;
+  const shortfallCount = financials.shortfallCount !== undefined 
+    ? financials.shortfallCount 
+    : monthlyRecords.filter(r => (r.baseRentShortfall || 0) > 0).length;
+
+  // 計算累計不足額總額
+  const totalShortfallAmt = monthlyRecords.reduce((acc, r) => acc + (r.baseRentShortfall || 0), 0);
+
+  // 1. 判定真實基準費率 (若抽成表脫敏無數字，優先採用月結表記錄之有效抽成率)
+  let rawBaseRate = parseFloat(String(terms.baseRate || '').replace('%', ''));
+  const effectiveTakeRate = totalSales > 0 ? (totalCommission / totalSales) * 100 : 0;
+  
+  // 若未約定正品抽成率或為 0，則以月結表的實質綜合抽成率為基準
+  let currentBaseRate = (!isNaN(rawBaseRate) && rawBaseRate > 0) 
+    ? rawBaseRate 
+    : (effectiveTakeRate > 0 ? Math.round(effectiveTakeRate * 10) / 10 : 0);
+
+  const versionCount = counterContracts.length || (dossierMeta.selectedVersions || []).length || 1;
+  const commType = terms.commType || '一般抽成';
+  const hasBaseRentCondition = commType.includes('包底') || shortfallCount > 0 || totalShortfallAmt > 0;
+
+  // 2. 營收動能成長率計算 (前半期 vs 後半期)
+  let growthRate = 0;
+  let isGrowing = false;
+  let isDeclining = false;
+  if (monthlyRecords.length >= 4 && totalSales > 0) {
+    const half = Math.floor(monthlyRecords.length / 2);
+    const firstHalf = monthlyRecords.slice(0, half);
+    const secondHalf = monthlyRecords.slice(half);
+    const avg1 = firstHalf.reduce((a, b) => a + (b.sales || 0), 0) / firstHalf.length;
+    const avg2 = secondHalf.reduce((a, b) => a + (b.sales || 0), 0) / secondHalf.length;
+    if (avg1 > 0) {
+      growthRate = Math.round(((avg2 - avg1) / avg1) * 1000) / 10;
+      if (growthRate >= 5) isGrowing = true;
+      else if (growthRate <= -5) isDeclining = true;
+    }
+  }
+
+  // 3. 坪效計算 (若使用者有填寫坪數)
+  const storeAreaNum = parseFloat(String(dossierMeta.storeArea || '').replace(/[^0-9.]/g, '')) || 0;
+  const salesPerPing = (storeAreaNum > 0 && avgMonthlySales > 0) ? Math.round(avgMonthlySales / storeAreaNum) : 0;
+
+  // 4. 決策矩陣與談判籌碼精算
+  let renewalAction = '';
+  let commissionStrategy = '';
+  let recommendedBaseRate = currentBaseRate;
+  let rateChangeDelta = 0;
+  let recommendedTierRule = '';
+  let recommendedBaseRent = 0;
+  let negotiationPoints = [];
+
+  if (totalSales > 0) {
+    if (hasBaseRentCondition) {
+      // === 類別 I: 包底型專櫃 (含包底抽成、包底加階梯) ===
+      if (shortfallCount === 0) {
+        // 100% 達標強勢櫃
+        renewalAction = '【強烈建議續約】(包底全期達標，爭取調升條件)';
+        rateChangeDelta = 1.0;
+        recommendedBaseRate = currentBaseRate > 0 ? (currentBaseRate + rateChangeDelta) : 16.0;
+        commissionStrategy = '調升基準抽成 + 等比提高包底門檻';
+        recommendedBaseRent = Math.round(avgMonthlySales * (recommendedBaseRate / 100) * 0.85);
+        recommendedTierRule = `建議正品抽成由 ${currentBaseRate}% 調升至 ${recommendedBaseRate}% (+1.0%)；月包底調升至 NT$ ${recommendedBaseRent.toLocaleString()}`;
+        negotiationPoints = [
+          `專櫃在評估期間累計銷售達 NT$ ${totalSales.toLocaleString()}，全期 ${monthCount} 個月 0 次觸發包底，具備自然集客與營收實力。`,
+          `因營運表現優良且無保底不足風險，建議爭取基準抽成調升 1.0%（由 ${currentBaseRate}% 調至 ${recommendedBaseRate}%）。`,
+          `建議調升新月包底門檻至 NT$ ${recommendedBaseRent.toLocaleString()}，鎖定商場至少 85% 預期抽成收益。`
+        ];
+      } else if (shortfallCount <= 2) {
+        // 偶發未達標 (1~2次)
+        renewalAction = '【建議續約】(偶發未達包底，改採激勵型雙階梯)';
+        rateChangeDelta = 0;
+        recommendedBaseRate = currentBaseRate;
+        commissionStrategy = '改採激勵型雙階梯抽成 (降包底促銷型)';
+        const threshold = Math.round(avgMonthlySales * 1.05);
+        recommendedBaseRent = Math.round(avgMonthlySales * (currentBaseRate / 100) * 0.75);
+        recommendedTierRule = `月營收 <= NT$ ${threshold.toLocaleString()} 時維持 ${currentBaseRate}%；超過部分優惠抽成 ${(currentBaseRate - 1)}% (-1.0%) 激勵衝高業績`;
+        negotiationPoints = [
+          `專櫃全期共 ${shortfallCount} 個月未達包底門檻（累計補足差額 NT$ ${totalShortfallAmt.toLocaleString()}），受淡旺季或檔期波動影響。`,
+          `建議將固定月包底適度調降至 NT$ ${recommendedBaseRent.toLocaleString()}，降低廠商淡季沈重負擔。`,
+          `改採『超額階梯抽成』模式：超過月均目標（NT$ ${threshold.toLocaleString()}）以上營收讓利 1.0%，激勵專櫃積極參與商場聯合促銷。`
+        ];
+      } else {
+        // 頻繁未達標 (>= 3 次)
+        renewalAction = '【建議附條件續約或評估換櫃】(多次未達包底)';
+        rateChangeDelta = 0;
+        recommendedBaseRate = currentBaseRate;
+        commissionStrategy = '維持原抽成，但要求縮減承租坪數或縮短合約期';
+        recommendedBaseRent = Math.round(avgMonthlySales * (currentBaseRate / 100) * 0.7);
+        recommendedTierRule = `維持基準費率 ${currentBaseRate}%，新月包底依近半年月均下修為 NT$ ${recommendedBaseRent.toLocaleString()}，並附加業績考核條款`;
+        negotiationPoints = [
+          `專櫃全期有 ${shortfallCount} 個月未達包底門檻（累計補足差額達 NT$ ${totalShortfallAmt.toLocaleString()}），營運動能疲軟。`,
+          storeAreaNum > 0
+            ? `目前專櫃坪數為 ${storeAreaNum} 坪（換算月均坪效僅 NT$ ${salesPerPing.toLocaleString()} / 坪），若欲續約建議要求縮減承租坪數 20%~30%，釋出面積引入高坪效品牌。`
+            : `建議合約縮短為 1 年期考核約，並加註『若連續 3 個月營收低於門檻，商場得調整櫃位動線或解約』之保障條款。`,
+          `若專櫃無法配合櫃位調整或強化促銷，建議於合約期滿後不再續約，啟動新品牌招商作業。`
+        ];
+      }
+    } else {
+      // === 類別 II: 一般抽成型專櫃 (純% / 無包底) ===
+      if (isGrowing && effectiveTakeRate >= 14) {
+        renewalAction = '【強烈建議續約】(營收正向成長，抽成貢獻健康)';
+        rateChangeDelta = 0.5;
+        recommendedBaseRate = currentBaseRate + rateChangeDelta;
+        commissionStrategy = '調升基準抽成費率';
+        recommendedTierRule = `建議正品由 ${currentBaseRate}% 微調至 ${recommendedBaseRate}% (+0.5%)`;
+        negotiationPoints = [
+          `專櫃累計營收達 NT$ ${totalSales.toLocaleString()}，且後半期營收較前半期成長 ${growthRate}%，動能強勁。`,
+          `實質綜合抽成率達 ${effectiveTakeRate.toFixed(1)}%，對商場收益貢獻度高。`,
+          `建議續約時將基準費率微調 +0.5%，並爭取配合大型檔期特別贊助。`
+        ];
+      } else if (isDeclining) {
+        renewalAction = '【建議附條件續約】(營收呈現衰退，需加強考核)';
+        rateChangeDelta = 0;
+        recommendedBaseRate = currentBaseRate;
+        commissionStrategy = '增訂月包底門檻或改換次級櫃位';
+        recommendedBaseRent = Math.round(avgMonthlySales * (currentBaseRate / 100) * 0.8);
+        recommendedTierRule = `費率維持 ${currentBaseRate}%，但強制增訂每月最低保底抽成 NT$ ${recommendedBaseRent.toLocaleString()}`;
+        negotiationPoints = [
+          `專櫃後半期營收衰退達 ${Math.abs(growthRate)}%（月均營收降至 NT$ ${avgMonthlySales.toLocaleString()}）。`,
+          `為保障商場基本租金收益，新約建議增設每月最低包底 NT$ ${recommendedBaseRent.toLocaleString()}，避免商場營運空轉。`,
+          storeAreaNum > 0 ? `目前月均坪效僅 NT$ ${salesPerPing.toLocaleString()} / 坪，建議評估移至坪數較小之次級動線櫃位。` : `建議要求品牌總部更換陳列主力商品或指派督導進駐輔導。`
+        ];
+      } else {
+        renewalAction = '【建議平順續約】(業績平穩，優化固定扣款)';
+        rateChangeDelta = 0;
+        recommendedBaseRate = currentBaseRate;
+        commissionStrategy = '維持抽成費率，調增公攤水電管銷費用';
+        recommendedTierRule = `維持現行費率 ${currentBaseRate}%，固定代扣管銷款調增 3%~5%`;
+        negotiationPoints = [
+          `專櫃全期營收穩定（月均銷貨約 NT$ ${avgMonthlySales.toLocaleString()}），屬平穩合作租戶。`,
+          `目前月均實扣款約 NT$ ${avgMonthlyDeductions.toLocaleString()}，建議下一期微調水電空調分攤費以反映成本上升。`,
+          `爭取專櫃配合各季主題檔期提供獨家優惠商品，提升商場客流。`
+        ];
+      }
+    }
+  } else {
+    // === 類別 III: 無月結營收數據 (僅有代扣明細或合約檔) ===
+    if (versionCount >= 3) {
+      renewalAction = '【建議平順續約】(長期合作租戶，建議優化費用結算)';
+      rateChangeDelta = 0.5;
+      recommendedBaseRate = currentBaseRate > 0 ? (currentBaseRate + 0.5) : 15.5;
+      commissionStrategy = '維持合作，調增固定代扣款項';
+      recommendedBaseRent = avgMonthlyDeductions > 0 ? Math.round(avgMonthlyDeductions * 1.5) : 0;
+      recommendedTierRule = `建議抽成維持現狀；代扣費用依營運物價調增 3%~5%`;
+      negotiationPoints = [
+        `該專櫃在商場已歷經 ${versionCount} 期合約，屬於長期穩定租戶，履約與每月費用繳納紀錄良好（月均扣款 NT$ ${avgMonthlyDeductions.toLocaleString()}）。`,
+        `建議優化公攤水電與清潔維護費率，以反映商場實際運維成本。`,
+        `待補充月結銷貨明細後，可進一步精算其坪效與包底門檻。`
+      ];
+    } else {
+      renewalAction = '【建議續約觀望】(需重新審定營業目標)';
+      recommendedBaseRate = currentBaseRate;
+      commissionStrategy = '短期 1 年續約 + 設立營業額考核目標';
+      recommendedTierRule = `簽署 1 年期合約並設立月度營收檢核標準`;
+      negotiationPoints = [
+        `專櫃合作期尚短且目前暫缺完整月結營收紀錄，建議先簽署 1 年期合約觀察表現。`,
+        `合約中應約定明確營業目標，作為下一期續約之審定標準。`
+      ];
+    }
+  }
+
+  const curR = currentBaseRate > 0 ? `${currentBaseRate}%` : '未載明';
+  const recR = recommendedBaseRate > 0 ? `${recommendedBaseRate}%` : '未載明';
+  const rDelta = rateChangeDelta > 0 ? `+${rateChangeDelta}%` : (rateChangeDelta < 0 ? `${rateChangeDelta}%` : '持平 (0%)');
+  const baseRentStr = recommendedBaseRent > 0 ? `NT$ ${recommendedBaseRent.toLocaleString()} / 月` : '依現行約定';
+
+  return {
+    renewalAction,
+    commissionStrategy,
+    strategy: commissionStrategy,
+    currentBaseRate: curR,
+    currentRate: curR,
+    recommendedBaseRate: recR,
+    recRate: recR,
+    rateChangeDelta: rDelta,
+    rateChange: rDelta,
+    recommendedTierRule,
+    recommendedBaseRent: baseRentStr,
+    recBaseRent: baseRentStr,
+    avgMonthlySales: avgMonthlySales > 0 ? `NT$ ${avgMonthlySales.toLocaleString()}` : '無數據',
+    avgMonthlyDeductions: avgMonthlyDeductions > 0 ? `NT$ ${avgMonthlyDeductions.toLocaleString()}` : '無數據',
+    avgMonthlyDeduct: avgMonthlyDeductions > 0 ? `NT$ ${avgMonthlyDeductions.toLocaleString()}` : 'NT$ 0',
+    shortfallCount,
+    totalShortfallAmt,
+    salesPerPing: salesPerPing > 0 ? `NT$ ${salesPerPing.toLocaleString()} / 坪` : '未填坪數',
+    growthRateStr: growthRate !== 0 ? `${growthRate > 0 ? '+' : ''}${growthRate}%` : '持平',
+    negotiationPoints,
+    points: negotiationPoints
+  };
+}
+function runEvaluation() {
+    const cId = document.getElementById('selectCounter').value;
+    if (!cId || state.selectedVersions.length === 0) {
+      document.getElementById('dashboard').style.display = 'none';
+      document.getElementById('btnExportExcel').disabled = true;
+      document.getElementById('btnExportMobile').disabled = true;
+      return;
+    }
+
+    const allContracts = state.tables.contracts.filter(c => String(c['專櫃編號'] || '').padStart(5, '0') === cId);
+    const activeContracts = allContracts.filter(c => state.selectedVersions.includes(String(c['版本編號'])));
+    if (activeContracts.length === 0) return;
+
+    const primary = activeContracts[0];
+    let cName = primary['專櫃名稱'];
+    let floor = primary['樓層名稱'];
+    let industry = primary['業種名稱'] || primary['業種編號'];
+
+    if (!cName || cName === `專櫃 ${cId}`) {
+      const dRec = (state.tables.deductions || []).find(r => String(r['專櫃編號'] || '').padStart(5, '0') === cId && (r['專櫃名稱'] || r['專櫃簡稱']));
+      if (dRec) cName = dRec['專櫃名稱'] || dRec['專櫃簡稱'];
+      if (!cName) {
+        const mRec = (state.tables.monthly || []).find(r => String(r['專櫃編號'] || '').padStart(5, '0') === cId && (r['專櫃名稱'] || r['專櫃簡稱']));
+        if (mRec) cName = mRec['專櫃名稱'] || mRec['專櫃簡稱'];
+      }
+    }
+    if (!floor) {
+      const dRec = (state.tables.deductions || state.tables.commissions || []).find(r => String(r['專櫃編號'] || '').padStart(5, '0') === cId && (r['樓層'] || r['樓層名稱']));
+      if (dRec) floor = dRec['樓層'] || dRec['樓層名稱'];
+    }
+    if (!industry) {
+      const mRec = (state.tables.monthly || state.tables.commissions || []).find(r => String(r['專櫃編號'] || '').padStart(5, '0') === cId && (r['業種'] || r['業種名稱'] || r['業種中分類']));
+      if (mRec) industry = mRec['業種'] || mRec['業種名稱'] || mRec['業種中分類'];
+    }
+    if (!cName) cName = `專櫃 ${cId}`;
+    if (!floor) floor = '未標註';
+    if (!industry) industry = '一般專櫃';
+
+    let earliestStart = '9999-12-31';
+    let latestEnd = '0000-00-00';
+    activeContracts.forEach(c => {
+      const s = parseDate(c['合約起始日']);
+      const e = parseDate(c['合約截止日']);
+      if (s && s < earliestStart) earliestStart = s;
+      if (e && e > latestEnd) latestEnd = e;
+    });
+    const startYM = earliestStart.substring(0, 7).replace('-', '');
+    const endYM = latestEnd.substring(0, 7).replace('-', '');
+
+    const commRows = state.tables.commissions.filter(c => String(c['專櫃編號'] || '').padStart(5, '0') === cId);
+    let baseRate = 0, rate90 = 0, rate80 = 0, commType = '一般抽成';
+    if (commRows.length > 0) {
+      baseRate = safeNum(commRows[0]['正品']);
+      rate90 = safeNum(commRows[0]['90折']) || (baseRate > 0 ? baseRate - 1 : 0);
+      rate80 = safeNum(commRows[0]['80折']) || (baseRate > 0 ? baseRate - 2 : 0);
+      commType = commRows[0]['抽成別'] || '一般抽成';
+    }
+
+    const deductRows = state.tables.deductions.filter(d => String(d['專櫃編號'] || '').padStart(5, '0') === cId);
+    const isDetailMatrix = deductRows.length > 0 && deductRows[0].hasOwnProperty('結帳年月') && deductRows[0].hasOwnProperty('總計');
+    const monthlyDeductMap = {};
+    let totalDeductSum = 0;
+
+    const latestContractDeductionItems = [];
+    let latestContractMonth = '';
+    let latestContractNo = '';
+    let latestDeductionTotal = 0;
+
+    if (isDetailMatrix) {
+      const validDeducts = deductRows.filter(d => String(d['結帳年月'] || '').trim().length === 6)
+                                     .sort((a, b) => String(a['結帳年月']).localeCompare(String(b['結帳年月'])));
+      const inRangeDeducts = deductRows.filter(d => {
+        const ym = String(d['結帳年月'] || '').trim();
+        return ym >= startYM && ym <= endYM;
+      });
+      const lastRec = validDeducts.length > 0 ? validDeducts[validDeducts.length - 1] : null;
+
+      if (lastRec) {
+        const ymRaw = String(lastRec['結帳年月']).trim();
+        latestContractMonth = `${ymRaw.substring(0, 4)}-${ymRaw.substring(4, 6)}`;
+        latestContractNo = String(lastRec['合約編號'] || '').trim();
+
+        const rawKeys = Object.keys(lastRec);
+        const cleanKeyMap = {};
+        rawKeys.forEach(k => {
+          cleanKeyMap[k.replace(/\r|\n/g, '').trim()] = k;
+        });
+
+        const isRuleIgnore = (code, name) => ['Z08', 'Z09', 'TAX'].includes(code) || (code && code.toUpperCase().includes('TAX')) || (name && name.includes('稅額'));
+        const isRuleAverage = (code) => ['Z01', 'Z02', 'Z03', 'Z05', 'Z06'].includes(code);
+        const isRuleDirectZ04 = (code) => code === 'Z04';
+        const isRuleZ07 = (code) => code === 'Z07';
+
+        const deductionKeys = Object.keys(cleanKeyMap).filter(k => 
+          (k.includes('/') || k.includes('稅額')) && !k.includes('結帳') && !k.includes('總計')
+        );
+
+        deductionKeys.forEach(cleanK => {
+          const rawK = cleanKeyMap[cleanK];
+          const code = cleanK.split('/')[0].trim();
+          const name = cleanK;
+
+          if (isRuleIgnore(code, name)) return;
+
+          if (isRuleAverage(code)) {
+            const evalRecs = inRangeDeducts;
+            if (!evalRecs || evalRecs.length === 0) return;
+            const totalSum = evalRecs.reduce((sum, r) => sum + safeNum(r[rawK]), 0);
+
+            if (totalSum > 0) {
+              const avg = Math.round(totalSum / evalRecs.length);
+              const periodNote = `(勾選期間 ${evalRecs.length} 個月平均，累計 NT$ ${totalSum.toLocaleString()})`;
+
+              latestContractDeductionItems.push({
+                code,
+                name,
+                amount: avg,
+                calcType: 'average',
+                note: `浮動費用 ${periodNote}`,
+                month: latestContractMonth,
+                contractNo: latestContractNo
+              });
+              latestDeductionTotal += avg;
+            }
+            return;
+          }
+
+          if (isRuleZ07(code)) {
+            const recs = inRangeDeducts;
+            if (!recs || recs.length === 0) return;
+
+            const monthVals = recs.map(r => {
+              const ymStr = String(r['結帳年月'] || '').trim();
+              const ymFmt = ymStr.length === 6 ? `${ymStr.substring(0, 4)}-${ymStr.substring(4, 6)}` : ymStr;
+              return { month: ymFmt, amount: safeNum(r[rawK]) };
+            });
+
+            const totalSum = monthVals.reduce((sum, r) => sum + r.amount, 0);
+            const nonZeroVals = monthVals.filter(r => r.amount > 0);
+
+            if (totalSum > 0) {
+              const avg = Math.round(totalSum / recs.length);
+              const maxItem = monthVals.reduce((max, r) => r.amount > max.amount ? r : max, monthVals[0]);
+              const minItem = nonZeroVals.length > 0 
+                ? nonZeroVals.reduce((min, r) => r.amount < min.amount ? r : min, nonZeroVals[0])
+                : monthVals.reduce((min, r) => r.amount < min.amount ? r : min, monthVals[0]);
+
+              const note = `勾選期間平均 (最高 NT$ ${maxItem.amount.toLocaleString()} [${maxItem.month}]，最低 NT$ ${minItem.amount.toLocaleString()} [${minItem.month}])`;
+
+              latestContractDeductionItems.push({
+                code,
+                name,
+                amount: avg,
+                calcType: 'average_with_extremes',
+                note,
+                month: latestContractMonth,
+                contractNo: latestContractNo
+              });
+              latestDeductionTotal += avg;
+            }
+            return;
+          }
+
+          // A01, A02 若在勾選合約期間中有出現，一併顯示出來；Z 開頭項目僅依勾選期間顯示
+          const isA01A02 = ['A01', 'A02'].includes(code);
+          const isZItem = code.startsWith('Z');
+          if (isZItem) {
+            const inRangeZSum = inRangeDeducts.reduce((sum, r) => sum + safeNum(r[rawK]), 0);
+            if (inRangeZSum <= 0) return;
+            const avgZ = Math.round(inRangeZSum / inRangeDeducts.length);
+            const noteZ = isRuleDirectZ04(code)
+              ? `收銀機檔期租借費 (勾選期間 ${inRangeDeducts.length} 個月平均，累計 NT$ ${inRangeZSum.toLocaleString()})`
+              : `浮動費用 (勾選期間 ${inRangeDeducts.length} 個月平均，累計 NT$ ${inRangeZSum.toLocaleString()})`;
+            latestContractDeductionItems.push({
+              code,
+              name,
+              amount: avgZ,
+              calcType: 'average',
+              note: noteZ,
+              month: latestContractMonth,
+              contractNo: latestContractNo
+            });
+            latestDeductionTotal += avgZ;
+            return;
+          }
+
+          if (isA01A02) {
+            const inRangeASum = inRangeDeducts.reduce((sum, r) => sum + safeNum(r[rawK]), 0);
+            if (inRangeASum > 0) {
+              const avgA = Math.round(inRangeASum / inRangeDeducts.length);
+              latestContractDeductionItems.push({
+                code,
+                name,
+                amount: avgA,
+                calcType: 'average',
+                note: `勾選期間出現 (累計 NT$ ${inRangeASum.toLocaleString()}，月均 NT$ ${avgA.toLocaleString()})`,
+                month: latestContractMonth,
+                contractNo: latestContractNo
+              });
+              latestDeductionTotal += avgA;
+            }
+            return;
+          }
+
+          const amt = safeNum(lastRec[rawK]);
+          if (amt > 0) {
+            let note = '最後合約約定設定';
+            latestContractDeductionItems.push({
+              code,
+              name,
+              amount: amt,
+              calcType: 'direct',
+              note,
+              month: latestContractMonth,
+              contractNo: latestContractNo
+            });
+            latestDeductionTotal += amt;
+          }
+        });
+      }
+
+      deductRows.forEach(d => {
+        const ymRaw = String(d['結帳年月'] || '').trim();
+        if (ymRaw >= startYM && ymRaw <= endYM) {
+          const ymFormatted = ymRaw.length === 6 ? `${ymRaw.substring(0,4)}-${ymRaw.substring(4,6)}` : ymRaw;
+          const tot = safeNum(d['總計']);
+          monthlyDeductMap[ymFormatted] = tot;
+          totalDeductSum += tot;
+        }
+      });
+    } else {
+      deductRows.forEach(d => {
+        const amt = safeNum(d['每月金額'] || d['總金額'] || d['扣款金額(未稅)']);
+        if (amt > 0) {
+          latestContractDeductionItems.push({
+            name: d['扣款項目名稱'] || '合約代扣項目',
+            amount: amt,
+            month: d['扣款起始月份'] || earliestStart.substring(0, 7),
+            contractNo: d['合約編號'] || ''
+          });
+          latestDeductionTotal += amt;
+        }
+      });
+      latestContractMonth = deductRows.length > 0 ? (deductRows[deductRows.length - 1]['扣款結束月份'] || latestEnd.substring(0, 7)) : '';
+    }
+
+    // 處理月結營收表 (MONTHLY)
+    const monthlyRows = (state.tables.monthly || []).filter(m => {
+      const mcid = String(m['專櫃編號'] || '').padStart(5, '0');
+      const ym = String(m['結帳年月'] || '').trim();
+      return mcid === cId && ym.length === 6 && (ym >= startYM && ym <= endYM);
+    });
+
+    const monthGroupMap = {};
+    monthlyRows.forEach(r => {
+      const ymRaw = String(r['結帳年月']).trim();
+      const ym = `${ymRaw.substring(0, 4)}-${ymRaw.substring(4, 6)}`;
+      if (!monthGroupMap[ym]) {
+        monthGroupMap[ym] = {
+          month: ym,
+          sales_untaxed: 0,
+          sales_tax: 0,
+          sales_total: 0,
+          comm_untaxed: 0,
+          comm_tax: 0,
+          comm_total: 0,
+          shortfall: 0,
+          reportDeduct: 0,
+          payout: 0
+        };
+      }
+      const sUn = safeNum(r['銷貨淨額_未稅金額'] || r['銷貨淨額']);
+      const sTax = safeNum(r['銷貨淨額_稅額'] || r['稅額']);
+      const sTot = safeNum(r['銷貨淨額_合計']) || (sUn + sTax);
+
+      const cUn = safeNum(r['抽成額_未稅金額'] || r['抽成額']);
+      const cTax = safeNum(r['抽成額_稅額']);
+      const cTot = safeNum(r['抽成額_合計']) || (cUn + cTax);
+
+      const sf = safeNum(r['包底抽成不足(含稅)'] || r['包底抽成不足'] || 0);
+      const dTot = safeNum(r['應收帳款(匯總)_應收合計'] || r['應收帳款(彙總)_應收合計'] || 0);
+      const pay = safeNum(r['應付帳款(含稅)'] || 0);
+
+      monthGroupMap[ym].sales_untaxed += sUn;
+      monthGroupMap[ym].sales_tax += sTax;
+      monthGroupMap[ym].sales_total += sTot;
+      monthGroupMap[ym].comm_untaxed += cUn;
+      monthGroupMap[ym].comm_tax += cTax;
+      monthGroupMap[ym].comm_total += cTot;
+      monthGroupMap[ym].shortfall += sf;
+      monthGroupMap[ym].reportDeduct += dTot;
+      monthGroupMap[ym].payout += pay;
+    });
+
+    const records = [];
+    let totSales = 0, totComm = 0, totCommUntaxed = 0, totDeduct = 0, shortfallCount = 0;
+    const isBaseRentCounter = String(commType || '').includes('包底');
+
+    const allYMs = Array.from(new Set([...Object.keys(monthlyDeductMap), ...Object.keys(monthGroupMap)])).sort();
+    allYMs.forEach(ym => {
+      const g = monthGroupMap[ym] || {
+        month: ym, sales_untaxed: 0, sales_tax: 0, sales_total: 0,
+        comm_untaxed: 0, comm_tax: 0, comm_total: 0, shortfall: 0, reportDeduct: 0, payout: 0
+      };
+      const deduct = monthlyDeductMap[ym] !== undefined ? monthlyDeductMap[ym] : g.reportDeduct;
+      const mallRev = g.comm_total + deduct + g.shortfall;
+      const netPay = g.payout || (g.sales_total - g.comm_total - deduct);
+
+      if (isBaseRentCounter && g.shortfall > 0) shortfallCount++;
+
+      totSales += g.sales_untaxed;
+      totComm += g.comm_total;
+      totCommUntaxed += g.comm_untaxed;
+      totDeduct += deduct;
+
+      const commRateUntaxed = g.sales_untaxed > 0 ? ((g.comm_untaxed / g.sales_untaxed) * 100).toFixed(1) + '%' : '0.0%';
+      let shortfallNote = `未稅抽成率 ${commRateUntaxed}`;
+      if (isBaseRentCounter && g.shortfall > 0) {
+        shortfallNote = `🔴 未達包底 (補足差額 NT$ ${g.shortfall.toLocaleString()}) | 未稅抽成率 ${commRateUntaxed}`;
+      }
+
+      records.push({
+        month: ym,
+        sales: g.sales_untaxed,
+        sales_untaxed: g.sales_untaxed,
+        sales_tax: g.sales_tax,
+        sales_total: g.sales_total,
+        commission: g.comm_total,
+        comm_untaxed: g.comm_untaxed,
+        comm_tax: g.comm_tax,
+        comm_total: g.comm_total,
+        commRateUntaxed,
+        deduct,
+        baseRentShortfall: g.shortfall,
+        shortfallNote,
+        mallRev,
+        payout: netPay
+      });
+    });
+
+    // 建立全歷史月結 Map (供計算去年同期比 YoY)
+    const allHistoryMap = {};
+    const allDeductHistory = {};
+    if (isDetailMatrix) {
+      deductRows.forEach(d => {
+        const ymRaw = String(d['結帳年月'] || '').trim();
+        if (ymRaw.length === 6) {
+          const ymF = `${ymRaw.substring(0,4)}-${ymRaw.substring(4,6)}`;
+          allDeductHistory[ymF] = safeNum(d['總計']);
+        }
+      });
+    }
+    (state.tables.monthly || []).filter(m => String(m['專櫃編號'] || '').padStart(5, '0') === cId).forEach(r => {
+      const ymRaw = String(r['結帳年月'] || '').trim();
+      if (ymRaw.length !== 6) return;
+      const ym = `${ymRaw.substring(0, 4)}-${ymRaw.substring(4, 6)}`;
+      if (!allHistoryMap[ym]) allHistoryMap[ym] = { sales: 0, comm: 0, shortfall: 0, reportDeduct: 0 };
+      allHistoryMap[ym].sales += safeNum(r['銷貨淨額_未稅金額'] || r['銷貨淨額']);
+      const cUn = safeNum(r['抽成額_未稅金額'] || r['抽成額']);
+      const cTax = safeNum(r['抽成額_稅額']);
+      allHistoryMap[ym].comm += (safeNum(r['抽成額_合計']) || (cUn + cTax));
+      allHistoryMap[ym].shortfall += safeNum(r['包底抽成不足(含稅)'] || r['包底抽成不足'] || 0);
+      allHistoryMap[ym].reportDeduct += safeNum(r['應收帳款(匯總)_應收合計'] || r['應收帳款(彙總)_應收合計'] || 0);
+    });
+    Object.keys(allHistoryMap).forEach(ym => {
+      const h = allHistoryMap[ym];
+      h.deduct = allDeductHistory[ym] !== undefined ? allDeductHistory[ym] : h.reportDeduct;
+      h.mallRev = h.comm + h.deduct + h.shortfall;
+    });
+
+    state.dossier = {
+      meta: {
+        counterId: cId,
+        counterName: cName,
+        selectedVersions: state.selectedVersions,
+        floor,
+        industry,
+        startDate: earliestStart,
+        endDate: latestEnd,
+        storeArea: (document.getElementById('inputArea') && document.getElementById('inputArea').value.trim()) ? document.getElementById('inputArea').value.trim() : '',
+        periodDescriptions: activeContracts.map(c => `第 ${c['版本編號']} 期 [${c['租戶狀況']}]: ${parseDate(c['合約起始日'])} ~ ${parseDate(c['合約截止日'])}`)
+      },
+      terms: {
+        commType,
+        baseRate: baseRate > 0 ? `${baseRate}%` : '15%',
+        rate90: rate90 > 0 ? `${rate90}%` : '14%',
+        rate80: rate80 > 0 ? `${rate80}%` : '13%',
+        isDetailMatrix,
+        latestContractMonth,
+        latestContractNo,
+        latestDeductions: latestContractDeductionItems,
+        latestDeductionTotal
+      },
+      records,
+      totalSales: totSales,
+      totalComm: totComm,
+      totalCommUntaxed: totCommUntaxed,
+      avgCommRateUntaxed: totSales > 0 ? ((totCommUntaxed / totSales) * 100).toFixed(1) + '%' : '0.0%',
+      isBaseRentCounter,
+      totalDeduct: totDeduct,
+      shortfallCount,
+      allHistoryMap
+    };
+
+    state.advisory = computeAdvisory(state.dossier, allContracts);
+
+    renderDashboard();
+    document.getElementById('btnExportExcel').disabled = false;
+    document.getElementById('btnExportMobile').disabled = false;
+    document.getElementById('btnExportPdf').disabled = false;
+  }
+
+  function getExportBaseName(d) {
+    const endYear = d.meta && d.meta.endDate ? parseInt(String(d.meta.endDate).slice(0, 4), 10) : NaN;
+    const sysNextYear = new Date().getFullYear() + 1;
+    const nextYear = (!isNaN(endYear) && endYear >= sysNextYear - 1) ? endYear + 1 : sysNextYear;
+    const contractNo = (d.terms && d.terms.latestContractNo) ? d.terms.latestContractNo : (d.meta.counterId || '無合約號');
+    const safeName = String(d.meta.counterName || d.meta.counterId || '').replace(/[\\/:*?"<>|]/g, '_').trim();
+    return `專櫃合約續約_${nextYear}年_${contractNo}_${safeName}報告`;
+  }
+  function renderDashboard() {
+    const d = state.dossier;
+    const a = state.advisory;
+    document.getElementById('dashboard').style.display = 'block';
+
+    document.getElementById('heroTarget').innerText = `[${d.meta.counterId}] ${d.meta.counterName} ｜ 第 ${d.meta.selectedVersions.join('、')} 期`;
+    document.getElementById('heroAction').innerText = a.renewalAction;
+    document.getElementById('heroRate').innerText = `${a.currentRate} ➔ ${a.recRate} (${a.rateChange})`;
+    document.getElementById('heroBaseRent').innerText = a.recBaseRent;
+    document.getElementById('heroStrategy').innerText = a.strategy;
+    document.getElementById('heroPointsList').innerHTML = a.points.map(p => `<li>${p}</li>`).join('');
+    renderHeroYoYChart(d);
+
+    document.getElementById('kpiMonths').innerText = `${d.records.length} 個月`;
+    document.getElementById('kpiDeductions').innerText = `NT$ ${d.totalDeduct.toLocaleString()}`;
+    document.getElementById('kpiAvgDeduct').innerText = a.avgMonthlyDeduct;
+    document.getElementById('kpiPeriod').innerText = `${d.meta.startDate} ~ ${d.meta.endDate}`;
+
+    const termsRows = [
+      ['項目', '約定與精算內容'],
+      ['專櫃編號 / 名稱', `${d.meta.counterId} / ${d.meta.counterName}`],
+      ['納入評比期別', `第 ${d.meta.selectedVersions.join('、')} 期`],
+      ['建議續約方向', a.renewalAction],
+      ['建議抽成調整', `${a.currentRate} ➔ ${a.recRate} (${a.rateChange})`],
+      ['建議月保底額', a.recBaseRent],
+      ['最後合約扣款基準月', d.terms.latestContractMonth ? `${d.terms.latestContractMonth} (合約號: ${d.terms.latestContractNo || '無'})` : '無'],
+      ['最新合約月扣款合計', d.terms.latestDeductionTotal ? `NT$ ${d.terms.latestDeductionTotal.toLocaleString()}` : '無']
+    ];
+    if (d.terms.latestDeductions && d.terms.latestDeductions.length > 0) {
+      termsRows.push(['── 最新合約扣款項目明細 ──', '───────────────']);
+      d.terms.latestDeductions.forEach(item => {
+        termsRows.push([`• ${item.name}`, `NT$ ${item.amount.toLocaleString()} ｜ ${item.note || ''}`]);
+      });
+    }
+    renderTable('tbl-terms', termsRows);
+
+    const finHeaders = ['月份', '銷售淨額 (未稅)', '銷售含稅合計', '抽成額 (未稅)', '抽成含稅合計', '實扣款項', d.isBaseRentCounter ? '未稅抽成率 / 未達包底' : '未稅抽成率', '商場總實收', '專櫃實得淨額'];
+    const finRows = [finHeaders];
+    d.records.forEach(r => finRows.push([
+      r.month,
+      (r.sales_untaxed !== undefined ? r.sales_untaxed : (r.sales || 0)).toLocaleString(),
+      (r.sales_total !== undefined ? r.sales_total : (r.sales || 0)).toLocaleString(),
+      (r.comm_untaxed !== undefined ? r.comm_untaxed : (r.commission || 0)).toLocaleString(),
+      (r.comm_total !== undefined ? r.comm_total : (r.commission || 0)).toLocaleString(),
+      (r.deduct || 0).toLocaleString(),
+      r.shortfallNote || (r.baseRentShortfall > 0 ? `🔴 未達包底 (補足 NT$ ${r.baseRentShortfall.toLocaleString()})` : '🟢 達標'),
+      (r.mallRev || 0).toLocaleString(),
+      (r.payout || 0).toLocaleString()
+    ]));
+    renderTable('tbl-financials', finRows);
+
+    renderTable('tbl-scorecard', [
+      ['談判維度', '精算數值與建議策略'],
+      ['建議續約結論', a.renewalAction],
+      ['抽成模式策略', a.strategy],
+      ['作戰籌碼 1', a.points[0] || ''],
+      ['作戰籌碼 2', a.points[1] || ''],
+      ['作戰籌碼 3', a.points[2] || '']
+    ]);
+  }
+
+  function buildYoYChartInfo(d) {
+    const records = (d.records || []).slice(-12);
+    if (!records || records.length === 0) return null;
+    const hist = d.allHistoryMap || {};
+
+    let curSalesSum = 0, prevSalesSum = 0;
+    let curDedSum = 0, prevDedSum = 0;
+    let curMallSum = 0, prevMallSum = 0;
+    let hasAnyPrev = false;
+
+    const chartData = records.map(r => {
+      const [yy, mm] = r.month.split('-');
+      const prevYm = `${parseInt(yy, 10) - 1}-${mm}`;
+      const prev = hist[prevYm];
+      const curSales = r.sales_untaxed !== undefined ? r.sales_untaxed : (r.sales || 0);
+      const curDed = r.deduct || 0;
+      const curMall = r.mallRev || 0;
+
+      if (prev) {
+        hasAnyPrev = true;
+        curSalesSum += curSales; prevSalesSum += (prev.sales || 0);
+        curDedSum += curDed; prevDedSum += (prev.deduct || 0);
+        curMallSum += curMall; prevMallSum += (prev.mallRev || 0);
+      }
+
+      return {
+        month: r.month,
+        curSales, curDed, curMall,
+        prevSales: prev ? (prev.sales || 0) : null,
+        prevDed: prev ? (prev.deduct || 0) : null,
+        prevMall: prev ? (prev.mallRev || 0) : null
+      };
+    });
+
+    const calcPct = (cur, prev) => (!hasAnyPrev || prev <= 0) ? null : Math.round(((cur - prev) / prev) * 1000) / 10;
+    const salesYoY = calcPct(curSalesSum, prevSalesSum);
+    const dedYoY = calcPct(curDedSum, prevDedSum);
+    const mallYoY = calcPct(curMallSum, prevMallSum);
+
+    const fmtYoY = (pct, label, color) => {
+      if (pct === null) return `<span style="background:#f8fafc; border:1px solid #cbd5e1; border-left:3px solid ${color}; padding:3px 8px; border-radius:4px; color:#475569; font-size:11px;">${label} YoY: 無去年同期</span>`;
+      const sign = pct > 0 ? '+' : '';
+      const badgeCol = pct >= 0 ? '#15803d' : '#c1121f';
+      return `<span style="background:#f8fafc; border:1px solid #cbd5e1; border-left:3px solid ${color}; padding:3px 8px; border-radius:4px; color:#0f172a; font-size:11px;">${label} YoY: <strong style="color:${badgeCol};">${sign}${pct}%</strong></span>`;
+    };
+
+    const badgesHtml = [
+      fmtYoY(salesYoY, '營收', '#051c2c'),
+      fmtYoY(dedYoY, '費用', '#0077b6'),
+      fmtYoY(mallYoY, '總實收', '#d97706')
+    ].join('');
+
+    const maxVal = Math.max(1, ...chartData.flatMap(c => [c.curSales, c.curDed, c.curMall, c.prevSales || 0, c.prevMall || 0]));
+    const colW = 72;
+    const svgW = Math.max(640, chartData.length * colW + 40);
+    const svgH = 180;
+    const baseY = 144;
+    const maxH = 108;
+
+    // 淡灰水平參考格線
+    let gridHtml = '';
+    [0.25, 0.5, 0.75, 1].forEach(ratio => {
+      const gy = Math.round(baseY - maxH * ratio);
+      gridHtml += `<line x1="20" y1="${gy}" x2="${svgW - 16}" y2="${gy}" stroke="#e2e8f0" stroke-dasharray="3,3" stroke-width="1"/>`;
+    });
+
+    let barsHtml = '';
+    chartData.forEach((c, idx) => {
+      const x0 = 24 + idx * colW;
+      const hSales = Math.round((c.curSales / maxVal) * maxH);
+      const hDed = Math.round((c.curDed / maxVal) * maxH);
+      const hMall = Math.round((c.curMall / maxVal) * maxH);
+
+      // 去年同期清楚對照柱 (冷灰實柱 + 深灰細框，白底高對比清晰可見)
+      if (c.prevSales !== null) {
+        const hpS = Math.round((c.prevSales / maxVal) * maxH);
+        const hpM = Math.round((c.prevMall / maxVal) * maxH);
+        barsHtml += `<rect x="${x0}" y="${baseY - hpS}" width="11" height="${hpS}" fill="#cbd5e1" stroke="#64748b" stroke-width="0.8" rx="1.5"><title>${c.month} 去年同期營收: NT$ ${c.prevSales.toLocaleString()}</title></rect>`;
+        barsHtml += `<rect x="${x0 + 30}" y="${baseY - hpM}" width="11" height="${hpM}" fill="#e2e8f0" stroke="#64748b" stroke-width="0.8" rx="1.5"><title>${c.month} 去年同期總實收: NT$ ${c.prevMall.toLocaleString()}</title></rect>`;
+      }
+
+      // 本期三柱 (麥肯錫專業配色: 深海軍藍 #051c2c、商務青藍 #0077b6、琥珀金 #d97706)
+      barsHtml += `<rect x="${x0 + 3}" y="${baseY - hSales}" width="10" height="${hSales}" fill="#051c2c" rx="1.5"><title>${c.month} 本期營收: NT$ ${c.curSales.toLocaleString()}</title></rect>`;
+      barsHtml += `<rect x="${x0 + 16}" y="${baseY - hDed}" width="10" height="${hDed}" fill="#0077b6" rx="1.5"><title>${c.month} 本期費用: NT$ ${c.curDed.toLocaleString()}</title></rect>`;
+      barsHtml += `<rect x="${x0 + 32}" y="${baseY - hMall}" width="10" height="${hMall}" fill="#d97706" rx="1.5"><title>${c.month} 本期總實收: NT$ ${c.curMall.toLocaleString()}</title></rect>`;
+
+      // 月份標籤
+      barsHtml += `<text x="${x0 + 21}" y="${baseY + 16}" fill="#334155" font-size="10" font-weight="600" text-anchor="middle">${c.month.slice(2)}</text>`;
+    });
+
+    const legend = `
+      <g transform="translate(24, 12)">
+        <rect x="0" y="0" width="10" height="10" fill="#051c2c" rx="1.5"/><text x="14" y="9" fill="#0f172a" font-size="11" font-weight="600">本期營收</text>
+        <rect x="74" y="0" width="10" height="10" fill="#0077b6" rx="1.5"/><text x="88" y="9" fill="#0f172a" font-size="11" font-weight="600">本期費用</text>
+        <rect x="148" y="0" width="10" height="10" fill="#d97706" rx="1.5"/><text x="162" y="9" fill="#0f172a" font-size="11" font-weight="600">商場總實收</text>
+        <rect x="234" y="0" width="10" height="10" fill="#cbd5e1" stroke="#64748b" stroke-width="0.8" rx="1.5"/><text x="248" y="9" fill="#475569" font-size="11">去年同期對照 (懸停看明細)</text>
+      </g>
+    `;
+
+    const svgHtml = `<svg width="100%" viewBox="0 0 ${svgW} ${svgH}" style="min-width:${svgW}px; display:block; background:#ffffff;">
+      ${gridHtml}
+      ${legend}
+      <line x1="20" y1="${baseY}" x2="${svgW - 16}" y2="${baseY}" stroke="#94a3b8" stroke-width="1.2"/>
+      ${barsHtml}
+    </svg>`;
+
+    return { chartData, salesYoY, dedYoY, mallYoY, badgesHtml, svgHtml };
+  }
+
+  function renderHeroYoYChart(d) {
+    const box = document.getElementById('heroChartBox');
+    const badgesEl = document.getElementById('heroYoYBadges');
+    const wrapEl = document.getElementById('heroChartSvgWrap');
+    const info = buildYoYChartInfo(d);
+    if (!info) {
+      box.style.display = 'none';
+      return;
+    }
+    box.style.display = 'block';
+    badgesEl.innerHTML = info.badgesHtml;
+    wrapEl.innerHTML = info.svgHtml;
+  }
+
+  function renderTable(tblId, data) {
+    const tbl = document.getElementById(tblId);
+    tbl.innerHTML = '';
+    data.forEach((row, idx) => {
+      const tr = document.createElement('tr');
+      row.forEach(cell => {
+        const el = idx === 0 ? document.createElement('th') : document.createElement('td');
+        el.innerText = cell;
+        tr.appendChild(el);
+      });
+      tbl.appendChild(tr);
+    });
+  }
+
+  function switchTab(idx) {
+    document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', i === idx));
+    document.querySelectorAll('.tab-pane').forEach((p, i) => p.classList.toggle('active', i === idx));
+  }
+
+  // 匯出三頁式 Excel
+  document.getElementById('btnExportExcel').addEventListener('click', () => {
+    if (!state.dossier) return;
+    const d = state.dossier;
+    const a = state.advisory;
+    const wb = XLSX.utils.book_new();
+
+    const s1Rows = [
+      ['專櫃合約評估報告 - 【條件明細】'],
+      ['專櫃編號', d.meta.counterId, '專櫃名稱', d.meta.counterName],
+      ['納入期別', '第 ' + d.meta.selectedVersions.join('、') + ' 期'],
+      ['建議續約結論', a.renewalAction],
+      ['抽成調整建議', `${a.currentRate} ➔ ${a.recRate} (${a.rateChange})`],
+      ['建議月保底額', a.recBaseRent],
+      ['', '', ''],
+      [`【最後一份合約扣款設定明細 (基準月：${d.terms.latestContractMonth || '最新期別'}，合計：NT$ ${(d.terms.latestDeductionTotal || 0).toLocaleString()})】`, '', ''],
+      ['扣款項目名稱', '設定/月均金額 (元)', '性質與計算備註']
+    ];
+    if (d.terms.latestDeductions && d.terms.latestDeductions.length > 0) {
+      d.terms.latestDeductions.forEach(item => {
+        s1Rows.push([item.name, item.amount, item.note || '']);
+      });
+      s1Rows.push(['最新月設定合計', d.terms.latestDeductionTotal || 0, '月固定/常態扣款總額']);
+    } else {
+      s1Rows.push(['無匹配之扣款細項紀錄', 0, '-']);
+    }
+    const ws1 = XLSX.utils.aoa_to_sheet(s1Rows);
+    XLSX.utils.book_append_sheet(wb, ws1, '條件明細');
+
+    const finData = [['月份', '月銷售淨額', '商場抽成', '代扣款項實扣', '商場總實收', '專櫃實得淨額']];
+    d.records.forEach(r => finData.push([r.month, r.sales, r.commission, r.deduct, r.mallRev, r.payout]));
+    const ws2 = XLSX.utils.aoa_to_sheet(finData);
+    XLSX.utils.book_append_sheet(wb, ws2, '營收與費用明細');
+
+    const ws3 = XLSX.utils.aoa_to_sheet([
+      ['專櫃合約評估報告 - 【續約建議評分卡】'],
+      ['決策建議方向', a.renewalAction],
+      ['抽成模式策略', a.strategy],
+      ['建議抽成調幅', `${a.currentRate} ➔ ${a.recRate}`],
+      ['建議月包底金額', a.recBaseRent],
+      ['談判要點 1', a.points[0] || ''],
+      ['談判要點 2', a.points[1] || '']
+    ]);
+    XLSX.utils.book_append_sheet(wb, ws3, '續約建議評分卡');
+
+    const baseName = getExportBaseName(d);
+    XLSX.writeFile(wb, `${baseName}.xlsx`);
+  });
+
+  // 匯出手機端 AES-256 加密報告
+  // 監聽「啟用加密」核取方塊狀態變更
+  document.getElementById('chkEncrypt').addEventListener('change', (e) => {
+    const isEnc = e.target.checked;
+    const pwdInput = document.getElementById('reportPassword');
+    const lbl = document.getElementById('lblPasswordTitle');
+    const btnMobile = document.getElementById('btnExportMobile');
+    const btnPdf = document.getElementById('btnExportPdf');
+
+    if (isEnc) {
+      pwdInput.disabled = false;
+      pwdInput.style.background = '#fff';
+      pwdInput.placeholder = '請輸入自訂解鎖密碼';
+      lbl.innerText = '🔒 設定高管解鎖密碼';
+      btnMobile.innerText = '📱 匯出高管手機加密報告 (HTML)';
+      btnPdf.innerText = '📄 下載 LINE 加密 PDF';
+    } else {
+      pwdInput.disabled = true;
+      pwdInput.style.background = '#f1f5f9';
+      pwdInput.placeholder = '免密碼直接開啟 (明文)';
+      lbl.innerText = '🔓 未啟用加密 (明文輸出)';
+      btnMobile.innerText = '📱 匯出手機直讀報告 (HTML 免密碼)';
+      btnPdf.innerText = '📄 下載 LINE PDF (免密碼)';
+    }
+  });
+
+  // 匯出手機端 HTML 報告 (直接下載至電腦 Downloads 資料夾)
+  document.getElementById('btnExportMobile').addEventListener('click', async () => {
+    if (!state.dossier || !state.advisory) return;
+    const isEnc = document.getElementById('chkEncrypt').checked;
+    const pwd = document.getElementById('reportPassword').value.trim();
+    if (isEnc && !pwd) {
+      alert('⚠️ 已啟用加密保護，請先輸入解鎖密碼！');
+      document.getElementById('reportPassword').focus();
+      return;
+    }
+    const d = state.dossier;
+    const a = state.advisory;
+    const records = d.records || [];
+    const totalSales = d.totalSales || 0;
+    const totalComm = d.totalComm || 0;
+    const totalDeduct = d.totalDeduct || 0;
+    const shortfallCount = d.shortfallCount !== undefined ? d.shortfallCount : (records.filter(r => (r.baseRentShortfall || 0) > 0).length);
+
+    const reportHtml = `
+      <div class="mobile-doc">
+        <div class="m-header">
+          <div class="m-badge">高管機密決策簡報</div>
+          <h1 class="m-title">[${d.meta.counterId}] ${d.meta.counterName}</h1>
+          <div class="m-sub">所屬樓層：${d.meta.floor || '未填寫'} ｜ 業種：${d.meta.industry || '一般專櫃'} ｜ 面積：${d.meta.storeArea || '15 坪'}</div>
+          <div class="m-period">評估期別：第 ${d.meta.selectedVersions.join('、')} 期 (${d.meta.startDate} ~ ${d.meta.endDate})</div>
+        </div>
+
+        <div class="m-card decision-card">
+          <div class="d-label">招商決策建議結論</div>
+          <div class="d-val">${a.renewalAction}</div>
+          <div class="d-grid">
+            <div class="d-item">
+              <span class="d-sublabel">建議抽成調整</span>
+              <strong class="d-highlight">${a.currentRate} ➔ ${a.recRate} (${a.rateChange})</strong>
+            </div>
+            <div class="d-item">
+              <span class="d-sublabel">建議月包底金額</span>
+              <strong class="d-highlight">${a.recBaseRent}</strong>
+            </div>
+          </div>
+          <div class="d-rule">
+            <strong>抽成模式策略：</strong>${a.strategy}
+          </div>
+        </div>
+
+        <div class="m-card">
+          <div class="m-sec-title">🎯 招商同仁談判作戰籌碼 (Talking Points)</div>
+          <ul class="m-list">
+            ${a.points.map(p => `<li>${p}</li>`).join('')}
+          </ul>
+        </div>
+
+        ${(() => {
+          const yoyInfo = buildYoYChartInfo(d);
+          if (!yoyInfo) return '';
+          return `
+        <div class="m-card" style="border-top: 3px solid #051c2c;">
+          <div class="m-sec-title" style="color: #051c2c;">📊 評比依據：營收 / 費用 / 總實收 去年同期比 (YoY)</div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;">${yoyInfo.badgesHtml}</div>
+          <div class="m-table-wrapper">${yoyInfo.svgHtml}</div>
+        </div>`;
+        })()}
+
+        <div class="m-card">
+          <div class="m-sec-title">📊 期間營運與費用精算數據</div>
+          <div class="stat-row"><span>累計銷售淨額 (未稅)：</span><strong style="color: #059669;">NT$ ${totalSales.toLocaleString()}</strong></div>
+          <div class="stat-row"><span>累計商場抽成 (含稅)：</span><strong style="color: #d97706;">NT$ ${totalComm.toLocaleString()}</strong></div>
+          <div class="stat-row"><span>合約期間實扣總額：</span><strong style="color: #2563eb;">NT$ ${totalDeduct.toLocaleString()}</strong></div>
+          <div class="stat-row"><span>歷史月均實扣款：</span><strong>${a.avgMonthlyDeduct}</strong></div>
+          <div class="stat-row"><span>包底不足觸發次數：</span><strong style="${shortfallCount > 0 ? 'color: #dc2626;' : 'color: #059669;'}">${shortfallCount > 0 ? `🔴 未達標共 ${shortfallCount} 次` : '🟢 全數達標 (0次)'}</strong></div>
+          <div class="stat-row"><span>納入評估月份數：</span><strong>${records.length} 個月</strong></div>
+        </div>
+
+        <!-- 近 12 個月收支清單 -->
+        <div class="m-card">
+          <div class="m-sec-title">📅 近 12 個月收支與包底檢核清單</div>
+          <div class="m-table-wrapper">
+            <table class="m-table">
+              <thead>
+                <tr>
+                  <th>月份</th>
+                  <th>銷售淨額 (未/含稅)</th>
+                  <th>抽成額 (未/含稅)</th>
+                  <th>實扣款</th>
+                  <th>包底狀態備註</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${records.slice(-12).map(r => {
+                  const sUn = r.sales_untaxed !== undefined ? r.sales_untaxed : (r.sales || 0);
+                  const sTot = r.sales_total !== undefined ? r.sales_total : sUn;
+                  const cUn = r.comm_untaxed !== undefined ? r.comm_untaxed : (r.commission || 0);
+                  const cTot = r.comm_total !== undefined ? r.comm_total : (r.commission || 0);
+                  const deduct = r.deduct !== undefined ? r.deduct : (r.deductions || 0);
+                  const sf = r.baseRentShortfall || 0;
+                  
+                  let noteHtml = '<span style="color:#059669; font-weight:600;">🟢 達標</span>';
+                  if (sf > 0) {
+                    noteHtml = `<span style="color:#dc2626; font-weight:700;">🔴 補足差額<br>NT$ ${sf.toLocaleString()}</span>`;
+                  }
+
+                  return `
+                  <tr>
+                    <td style="font-weight:600; white-space:nowrap;">${r.month}</td>
+                    <td>
+                      <div style="font-weight:600;">NT$ ${sUn.toLocaleString()}</div>
+                      <div style="font-size:10px; color:#64748b;">含稅 ${sTot.toLocaleString()}</div>
+                    </td>
+                    <td>
+                      <div style="font-weight:600;">NT$ ${cUn.toLocaleString()}</div>
+                      <div style="font-size:10px; color:#64748b;">含稅 ${cTot.toLocaleString()}</div>
+                    </td>
+                    <td>NT$ ${deduct.toLocaleString()}</td>
+                    <td>${noteHtml}</td>
+                  </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 最後一份合約扣款設定明細 -->
+        <div class="m-card">
+          <div class="m-sec-title">📌 最後一份合約扣款設定明細 (基準月份：${d.terms.latestContractMonth || '最新期別'}，合計：NT$ ${(d.terms.latestDeductionTotal || 0).toLocaleString()})</div>
+          <div class="m-table-wrapper">
+            <table class="m-table">
+              <thead>
+                <tr>
+                  <th>扣款項目名稱</th>
+                  <th>約定/月均金額</th>
+                  <th>性質與計算備註</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${(d.terms.latestDeductions && d.terms.latestDeductions.length > 0) ? d.terms.latestDeductions.map(item => `
+                  <tr>
+                    <td style="font-weight:600; white-space:nowrap;">${item.name}</td>
+                    <td style="color:#2563eb; font-weight:700; white-space:nowrap;">NT$ ${item.amount.toLocaleString()}</td>
+                    <td style="font-size:11px; color:#475569;">${item.note || item.month || '最新合約約定設定'}</td>
+                  </tr>
+                `).join('') : `
+                  <tr>
+                    <td colspan="3" style="text-align:center; color:#94a3b8;">無明細資料</td>
+                  </tr>
+                `}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="m-footer">
+          Minerva-ETL 系統自動產生 ｜ 機密文件請勿外流 ｜ 產生時間：${new Date().toISOString().substring(0, 10)}
+        </div>
+      </div>
+    `;
+
+    const commonStyle = `
+      * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+      body { background: #0f172a; color: #f8fafc; min-height: 100vh; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+      .mobile-doc { background: #f8fafc; color: #1e293b; border-radius: 12px; padding: 16px; width: 100%; max-width: 500px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+      .m-header { text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 14px; }
+      .m-badge { display: inline-block; background: #0f172a; color: #f8fafc; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 4px; margin-bottom: 6px; }
+      .m-title { font-size: 20px; font-weight: 800; color: #0f172a; }
+      .m-sub { font-size: 12px; color: #64748b; margin-top: 4px; }
+      .m-period { font-size: 12px; color: #0284c7; font-weight: 600; margin-top: 2px; }
+      .m-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 12px; }
+      .decision-card { background: linear-gradient(135deg, #1e3a8a, #0f172a); color: #fff; border: none; }
+      .d-label { font-size: 11px; color: #93c5fd; font-weight: 700; }
+      .d-val { font-size: 17px; font-weight: 800; color: #fde047; margin: 4px 0 10px; line-height: 1.3; }
+      .d-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 10px; margin-bottom: 10px; }
+      .d-sublabel { font-size: 11px; color: #93c5fd; display: block; }
+      .d-highlight { font-size: 14px; color: #fff; font-weight: 700; }
+      .d-rule { font-size: 12px; line-height: 1.4; color: #cbd5e1; }
+      .m-sec-title { font-size: 13px; font-weight: 700; color: #334155; margin-bottom: 8px; display: flex; align-items: center; gap: 4px; }
+      .m-list { list-style: none; font-size: 12px; color: #334155; line-height: 1.5; }
+      .m-list li { margin-bottom: 6px; position: relative; padding-left: 14px; }
+      .m-list li::before { content: "•"; position: absolute; left: 0; color: #0284c7; font-weight: bold; }
+      .stat-row { display: flex; justify-content: space-between; font-size: 12px; padding: 5px 0; border-bottom: 1px solid #f1f5f9; }
+      .m-table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .m-table { width: 100%; border-collapse: collapse; font-size: 11px; text-align: left; }
+      .m-table th { background: #f1f5f9; color: #475569; padding: 6px 4px; border: 1px solid #e2e8f0; font-weight: 600; white-space: nowrap; }
+      .m-table td { padding: 6px 4px; border: 1px solid #e2e8f0; }
+      .m-footer { text-align: center; font-size: 10px; color: #94a3b8; margin-top: 10px; }
+    `;
+
+    let finalHtml = '';
+    let outFileName = '';
+
+    if (isEnc) {
+      // 模式 A：AES-256 加密輸出
+      outFileName = `${getExportBaseName(d)}.html`;
+      const enc = new TextEncoder();
+      const salt = window.crypto.getRandomValues(new Uint8Array(16));
+      const iv = window.crypto.getRandomValues(new Uint8Array(12));
+      const keyMaterial = await window.crypto.subtle.importKey('raw', enc.encode(pwd), 'PBKDF2', false, ['deriveKey']);
+      const key = await window.crypto.subtle.deriveKey(
+        { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
+        keyMaterial,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt']
+      );
+      const encrypted = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(reportHtml));
+      const payload = {
+        salt: btoa(String.fromCharCode(...salt)),
+        iv: btoa(String.fromCharCode(...iv)),
+        ciphertext: btoa(String.fromCharCode(...new Uint8Array(encrypted)))
+      };
+
+      finalHtml = `<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>🔒 專櫃合約評估報告 (密碼保護)</title>
+  <style>
+    ${commonStyle}
+    .lock-box { background: #1e293b; border: 1px solid #334155; border-radius: 14px; padding: 28px 20px; width: 100%; max-width: 380px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+    .lock-icon { font-size: 40px; margin-bottom: 12px; }
+    .lock-title { font-size: 18px; font-weight: 700; color: #38bdf8; margin-bottom: 6px; }
+    .lock-desc { font-size: 13px; color: #94a3b8; margin-bottom: 20px; line-height: 1.4; }
+    .pwd-input { width: 100%; padding: 12px 14px; font-size: 16px; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: #fff; text-align: center; margin-bottom: 14px; }
+    .pwd-input:focus { outline: none; border-color: #38bdf8; }
+    .unlock-btn { width: 100%; padding: 12px; font-size: 15px; font-weight: 700; border-radius: 8px; border: none; background: #0284c7; color: #fff; cursor: pointer; transition: 0.2s; }
+    .unlock-btn:hover { background: #0369a1; }
+    .err-msg { color: #f87171; font-size: 13px; margin-top: 10px; display: none; }
+    #reportContent { display: none; width: 100%; max-width: 500px; }
+  </style>
+</head>
+<body>
+  <div class="lock-box" id="lockBox">
+    <div class="lock-icon">🔒</div>
+    <div class="lock-title">專櫃合約評估與抽成決策</div>
+    <div class="lock-desc">本文件包含核心營收與機密抽成費率，已透過 AES-256 銀行級技術加密保護。</div>
+    <input type="password" class="pwd-input" id="unlockPwd" placeholder="請輸入高管解密密碼" autofocus>
+    <button class="unlock-btn" id="unlockBtn">解密開啟報告</button>
+    <div class="err-msg" id="errMsg">⚠️ 密碼錯誤，無法解密</div>
+  </div>
+  <div id="reportContent"></div>
+  <script>
+    const payload = ${JSON.stringify(payload)};
+    function base64ToBuf(b64) {
+      const bin = atob(b64);
+      const buf = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+      return buf;
+    }
+    document.getElementById('unlockBtn').addEventListener('click', async () => {
+      const pwd = document.getElementById('unlockPwd').value.trim();
+      if (!pwd) return;
+      try {
+        const enc = new TextEncoder();
+        const salt = base64ToBuf(payload.salt);
+        const iv = base64ToBuf(payload.iv);
+        const data = base64ToBuf(payload.ciphertext);
+        const keyMat = await window.crypto.subtle.importKey('raw', enc.encode(pwd), 'PBKDF2', false, ['deriveKey']);
+        const key = await window.crypto.subtle.deriveKey(
+          { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
+          keyMat,
+          { name: 'AES-GCM', length: 256 },
+          false,
+          ['decrypt']
+        );
+        const dec = await window.crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
+        const decHtml = new TextDecoder().decode(dec);
+        document.getElementById('lockBox').style.display = 'none';
+        const rep = document.getElementById('reportContent');
+        rep.innerHTML = decHtml;
+        rep.style.display = 'block';
+      } catch (e) {
+        document.getElementById('errMsg').style.display = 'block';
+      }
+    });
+    document.getElementById('unlockPwd').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('unlockBtn').click();
+    });
+  \x3C/script>
+</body>
+</html>`;
+    } else {
+      // 模式 B：明文免密碼直接開啟
+      outFileName = `${getExportBaseName(d)}.html`;
+      finalHtml = `<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>專櫃合約評估報告 (直讀免密碼)</title>
+  <style>
+    ${commonStyle}
+  </style>
+</head>
+<body>
+  ${reportHtml}
+</body>
+</html>`;
+    }
+
+    // 標準瀏覽器 Blob 下載 (直接落入使用者的 Downloads 資料夾)
+    const blob = new Blob([finalHtml], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const aLink = document.createElement('a');
+    aLink.href = url;
+    aLink.download = outFileName;
+    document.body.appendChild(aLink);
+    aLink.click();
+    document.body.removeChild(aLink);
+    URL.revokeObjectURL(url);
+  });
+
+  // 下載 LINE PDF (100% 依據當前畫面即時動態生成，格式與 HTML 絕對一致)
+  document.getElementById('btnExportPdf').addEventListener('click', async () => {
+    if (!state.dossier || !state.advisory) return;
+    const isEnc = document.getElementById('chkEncrypt').checked;
+    const d = state.dossier;
+    const a = state.advisory;
+    const cId = d.meta.counterId;
+    const pwd = document.getElementById('reportPassword').value.trim();
+    if (isEnc && !pwd) {
+      alert('⚠️ 已啟用加密保護，請先輸入解鎖密碼！');
+      document.getElementById('reportPassword').focus();
+      return;
+    }
+    const pdfFileName = `${getExportBaseName(d)}.pdf`;
+
+    try {
+      if (!window.PDFLib) {
+        alert('⚠️ PDF 生成引擎載入中，請稍候重試！');
+        return;
+      }
+
+      // 1. 純前端 Canvas 2x 高解析度繪圖 (100% 取自當前畫面之真實數據與期別，中文與符號絕不亂碼)
+      const W = 1190;
+      const H = 1684;
+      const canvas = document.createElement('canvas');
+      canvas.width = W;
+      canvas.height = H;
+      const ctx = canvas.getContext('2d');
+
+      // 背景純白
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, W, H);
+
+      // 頂部深藍檔頭 (比照手機 HTML 檔頭層次排版)
+      ctx.fillStyle = '#0f2960';
+      ctx.fillRect(0, 0, W, 175);
+
+      // 膠囊標籤
+      ctx.fillStyle = '#1e3a8a';
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect((W - 190) / 2, 16, 190, 32, 6);
+      else ctx.rect((W - 190) / 2, 16, 190, 32);
+      ctx.fill();
+      ctx.font = 'bold 18px "Microsoft JhengHei", "PingFang TC", sans-serif';
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.fillText('高管機密決策簡報', W / 2, 38);
+
+      // 大標題：[專櫃編號] 專櫃名稱
+      ctx.font = 'bold 36px "Microsoft JhengHei", "PingFang TC", sans-serif';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(`[${d.meta.counterId}] ${d.meta.counterName}`, W / 2, 95);
+
+      // 副標 1：所屬樓層 ｜ 業種 ｜ 面積
+      ctx.font = '20px "Microsoft JhengHei", "PingFang TC", sans-serif';
+      ctx.fillStyle = '#bfdbfe';
+      const floorStr = d.meta.floor || '未標註';
+      const indStr = d.meta.industry || '一般專櫃';
+      const areaStr = d.meta.storeArea || '15 坪';
+      ctx.fillText(`所屬樓層：${floorStr}  ｜  業種：${indStr}  ｜  面積：${areaStr}`, W / 2, 132);
+
+      // 副標 2：評估期別
+      ctx.font = 'bold 20px "Microsoft JhengHei", "PingFang TC", sans-serif';
+      ctx.fillStyle = '#7dd3fc';
+      ctx.fillText(`評估期別：第 ${d.meta.selectedVersions.join('、')} 期 (${d.meta.startDate} ~ ${d.meta.endDate})`, W / 2, 162);
+
+      const padX = 72;
+      const contentW = W - padX * 2;
+
+      // 2. 核心續約決策卡
+      const cardY = 195;
+      ctx.fillStyle = '#f0f6ff';
+      ctx.strokeStyle = '#bfdbfe';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(padX, cardY, contentW, 160, 10);
+      else ctx.rect(padX, cardY, contentW, 160);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.textAlign = 'left';
+      ctx.font = 'bold 21px "Microsoft JhengHei", sans-serif';
+      ctx.fillStyle = '#1e40af';
+      ctx.fillText('🎯 招商決策建議結論', padX + 24, cardY + 36);
+
+      ctx.font = 'bold 27px "Microsoft JhengHei", sans-serif';
+      ctx.fillStyle = '#b91c1c';
+      ctx.fillText(a.renewalAction, padX + 24, cardY + 74);
+
+      ctx.font = 'bold 21px "Microsoft JhengHei", sans-serif';
+      ctx.fillStyle = '#1e293b';
+      ctx.fillText(`抽成調整建議：${a.currentRate} ➔ ${a.recRate} (${a.rateChange})       建議月包底金額：${a.recBaseRent}`, padX + 24, cardY + 114);
+
+      ctx.font = '20px "Microsoft JhengHei", sans-serif';
+      ctx.fillStyle = '#475569';
+      ctx.fillText(`抽成策略模式：${a.strategy}`, padX + 24, cardY + 145);
+
+      // 3. 談判作戰要點
+      let curY = 385;
+      ctx.font = 'bold 22px "Microsoft JhengHei", sans-serif';
+      ctx.fillStyle = '#1e293b';
+      ctx.fillText('💼 招商同仁談判作戰籌碼 (Talking Points)', padX, curY);
+
+      curY += 28;
+      ctx.font = '19px "Microsoft JhengHei", sans-serif';
+      ctx.fillStyle = '#334155';
+      (a.points || []).slice(0, 3).forEach(p => {
+        const cleanP = p.replace(/^[•\-\s]+/, '');
+        ctx.fillText(`• ${cleanP}`, padX + 16, curY);
+        curY += 28;
+      });
+
+      // 4. 期間營運財務精算摘要
+      curY += 8;
+      ctx.fillStyle = '#f8fafc';
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(padX, curY, contentW, 82, 8);
+      else ctx.rect(padX, curY, contentW, 82);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.font = 'bold 20px "Microsoft JhengHei", sans-serif';
+      ctx.fillStyle = '#1e293b';
+      ctx.fillText(`累計未稅銷貨：NT$ ${d.totalSales.toLocaleString()}    累計含稅抽成：NT$ ${d.totalComm.toLocaleString()}    合約實扣總額：NT$ ${d.totalDeduct.toLocaleString()}`, padX + 24, curY + 34);
+
+      ctx.font = '19px "Microsoft JhengHei", sans-serif';
+      ctx.fillStyle = '#475569';
+      const sfText = a.shortfallCount > 0 ? `未達標共 ${a.shortfallCount} 次` : '全數達標 (0次)';
+      const statusSummaryText = d.isBaseRentCounter ? `未達包底：${sfText} (平均未稅抽成率 ${d.avgCommRateUntaxed || '0.0%'})` : `平均未稅抽成率：${d.avgCommRateUntaxed || '0.0%'}`;
+      ctx.fillText(`${statusSummaryText}        評估月份數：${d.records.length} 個月        歷史月均實扣：${a.avgMonthlyDeduct}`, padX + 24, curY + 64);
+
+      // 4.5 麥肯錫風格 YoY 視覺圖表 (營收 / 費用 / 總實收 去年同期比)
+      const yoyInfo = buildYoYChartInfo(d);
+      if (yoyInfo && yoyInfo.chartData.length > 0) {
+        curY += 92;
+        const chartBoxH = 148;
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 1.5;
+        ctx.fillRect(padX, curY, contentW, chartBoxH);
+        ctx.strokeRect(padX, curY, contentW, chartBoxH);
+        // 頂部麥肯錫海軍藍飾條
+        ctx.fillStyle = '#051c2c';
+        ctx.fillRect(padX, curY, contentW, 4);
+
+        ctx.font = 'bold 17px "Microsoft JhengHei", sans-serif';
+        ctx.fillStyle = '#051c2c';
+        ctx.fillText('📊 評比依據：營收 / 費用 / 商場總實收 去年同期比 (YoY)', padX + 16, curY + 26);
+
+        const fmtYoyText = (v, lbl) => v === null ? `${lbl}: 無同期` : `${lbl}: ${v > 0 ? '+' : ''}${v}%`;
+        ctx.font = 'bold 15px "Microsoft JhengHei", sans-serif';
+        ctx.fillStyle = '#334155';
+        ctx.fillText(`${fmtYoyText(yoyInfo.salesYoY, '營收YoY')}   |   ${fmtYoyText(yoyInfo.dedYoY, '費用YoY')}   |   ${fmtYoyText(yoyInfo.mallYoY, '總實收YoY')}`, padX + 530, curY + 26);
+
+        const cMax = Math.max(1, ...yoyInfo.chartData.flatMap(c => [c.curSales, c.curDed, c.curMall, c.prevSales || 0, c.prevMall || 0]));
+        const cBaseY = curY + 124;
+        const cMaxH = 78;
+        const cStep = Math.floor((contentW - 40) / yoyInfo.chartData.length);
+
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(padX + 16, cBaseY);
+        ctx.lineTo(padX + contentW - 16, cBaseY);
+        ctx.stroke();
+
+        yoyInfo.chartData.forEach((c, idx) => {
+          const x0 = padX + 24 + idx * cStep;
+          const hS = Math.round((c.curSales / cMax) * cMaxH);
+          const hD = Math.round((c.curDed / cMax) * cMaxH);
+          const hM = Math.round((c.curMall / cMax) * cMaxH);
+
+          if (c.prevSales !== null) {
+            const hpS = Math.round((c.prevSales / cMax) * cMaxH);
+            const hpM = Math.round((c.prevMall / cMax) * cMaxH);
+            ctx.fillStyle = '#cbd5e1';
+            ctx.fillRect(x0, cBaseY - hpS, 11, hpS);
+            ctx.fillStyle = '#e2e8f0';
+            ctx.fillRect(x0 + 30, cBaseY - hpM, 11, hpM);
+          }
+
+          ctx.fillStyle = '#051c2c';
+          ctx.fillRect(x0 + 3, cBaseY - hS, 10, hS);
+          ctx.fillStyle = '#0077b6';
+          ctx.fillRect(x0 + 16, cBaseY - hD, 10, hD);
+          ctx.fillStyle = '#d97706';
+          ctx.fillRect(x0 + 32, cBaseY - hM, 10, hM);
+
+          ctx.font = '12px "Microsoft JhengHei", sans-serif';
+          ctx.fillStyle = '#334155';
+          ctx.fillText(c.month.slice(2), x0 + 6, cBaseY + 15);
+        });
+        curY += 62;
+      }
+
+      // 5. 近 12 個月收支表格
+      curY += 105;
+      ctx.font = 'bold 21px "Microsoft JhengHei", sans-serif';
+      ctx.fillStyle = '#1e293b';
+      ctx.fillText(d.isBaseRentCounter ? '📅 近 12 個月收支與抽成檢核清單 (銷貨額、抽成額、實扣款項、未達包底與抽成率)' : '📅 近 12 個月收支與抽成明細清單 (銷貨額、抽成額、實扣款項、未稅抽成率)', padX, curY);
+
+      curY += 16;
+      const cols5 = [
+        { name: '月份', w: 140 },
+        { name: '銷售淨額 (未/含稅)', w: 260 },
+        { name: '抽成額 (未/含稅)', w: 260 },
+        { name: '實扣款項', w: 180 },
+        { name: d.isBaseRentCounter ? '未稅抽成率 / 未達包底' : '未稅抽成率', w: 206 }
+      ];
+
+      ctx.fillStyle = '#1e3a8a';
+      ctx.fillRect(padX, curY, contentW, 32);
+      ctx.font = 'bold 18px "Microsoft JhengHei", sans-serif';
+      ctx.fillStyle = '#ffffff';
+      let colX = padX;
+      cols5.forEach(c => {
+        ctx.fillText(c.name, colX + 12, curY + 23);
+        colX += c.w;
+      });
+
+      curY += 32;
+      const recentRecords = (d.records || []).slice(-12);
+      recentRecords.forEach((r, idx) => {
+        ctx.fillStyle = idx % 2 === 1 ? '#f8fafc' : '#ffffff';
+        ctx.fillRect(padX, curY, contentW, 36);
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.strokeRect(padX, curY, contentW, 36);
+
+        const sUn = r.sales_untaxed !== undefined ? r.sales_untaxed : (r.sales || 0);
+        const sTot = r.sales_total !== undefined ? r.sales_total : sUn;
+        const cUn = r.comm_untaxed !== undefined ? r.comm_untaxed : (r.commission || 0);
+        const cTot = r.comm_total !== undefined ? r.comm_total : (r.commission || 0);
+        const deduct = r.deduct !== undefined ? r.deduct : (r.deductions || 0);
+        const sf = r.baseRentShortfall || 0;
+
+        let cx = padX;
+        ctx.font = 'bold 18px "Microsoft JhengHei", sans-serif';
+        ctx.fillStyle = '#1e293b';
+        ctx.fillText(r.month, cx + 12, curY + 24);
+        cx += cols5[0].w;
+
+        ctx.font = 'bold 16px "Microsoft JhengHei", sans-serif';
+        ctx.fillStyle = '#059669';
+        ctx.fillText(`NT$ ${sUn.toLocaleString()}`, cx + 12, curY + 16);
+        ctx.font = '14px "Microsoft JhengHei", sans-serif';
+        ctx.fillStyle = '#64748b';
+        ctx.fillText(`含稅 ${sTot.toLocaleString()}`, cx + 12, curY + 31);
+        cx += cols5[1].w;
+
+        ctx.font = 'bold 16px "Microsoft JhengHei", sans-serif';
+        ctx.fillStyle = '#d97706';
+        ctx.fillText(`NT$ ${cUn.toLocaleString()}`, cx + 12, curY + 16);
+        ctx.font = '14px "Microsoft JhengHei", sans-serif';
+        ctx.fillStyle = '#64748b';
+        ctx.fillText(`含稅 ${cTot.toLocaleString()}`, cx + 12, curY + 31);
+        cx += cols5[2].w;
+
+        ctx.font = '16px "Microsoft JhengHei", sans-serif';
+        ctx.fillStyle = '#2563eb';
+        ctx.fillText(`NT$ ${deduct.toLocaleString()}`, cx + 12, curY + 24);
+        cx += cols5[3].w;
+
+        if (sf > 0) {
+          ctx.font = 'bold 15px "Microsoft JhengHei", sans-serif';
+          ctx.fillStyle = '#dc2626';
+          ctx.fillText(`🔴 補差額 ${sf.toLocaleString()}`, cx + 12, curY + 24);
+        } else {
+          ctx.font = '16px "Microsoft JhengHei", sans-serif';
+          ctx.fillStyle = '#059669';
+          ctx.fillText('🟢 達標', cx + 12, curY + 24);
+        }
+
+        curY += 36;
+      });
+
+      // 6. 檔尾扣款設定明細表格 (三欄完整表格)
+      curY += 24;
+      ctx.font = 'bold 21px "Microsoft JhengHei", sans-serif';
+      ctx.fillStyle = '#1e293b';
+      ctx.fillText(`📌 最後一份合約扣款設定明細 (基準月份：${d.terms.latestContractMonth || '最新期別'}，合計：NT$ ${(d.terms.latestDeductionTotal || 0).toLocaleString()})`, padX, curY);
+
+      curY += 16;
+      const cols3 = [
+        { name: '扣款項目名稱', w: 280 },
+        { name: '約定/月均金額', w: 200 },
+        { name: '性質與計算備註', w: 566 }
+      ];
+
+      ctx.fillStyle = '#1e3a8a';
+      ctx.fillRect(padX, curY, contentW, 32);
+      ctx.font = 'bold 18px "Microsoft JhengHei", sans-serif';
+      ctx.fillStyle = '#ffffff';
+      colX = padX;
+      cols3.forEach(c => {
+        ctx.fillText(c.name, colX + 12, curY + 23);
+        colX += c.w;
+      });
+
+      curY += 32;
+      const deductItems = (d.terms.latestDeductions || []);
+      deductItems.forEach((item, idx) => {
+        ctx.fillStyle = idx % 2 === 1 ? '#f8fafc' : '#ffffff';
+        ctx.fillRect(padX, curY, contentW, 32);
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.strokeRect(padX, curY, contentW, 32);
+
+        let cx = padX;
+        ctx.font = 'bold 17px "Microsoft JhengHei", sans-serif';
+        ctx.fillStyle = '#1e293b';
+        ctx.fillText(item.name, cx + 12, curY + 22);
+        cx += cols3[0].w;
+
+        ctx.font = 'bold 17px "Microsoft JhengHei", sans-serif';
+        ctx.fillStyle = '#2563eb';
+        ctx.fillText(`NT$ ${item.amount.toLocaleString()}`, cx + 12, curY + 22);
+        cx += cols3[1].w;
+
+        ctx.font = '16px "Microsoft JhengHei", sans-serif';
+        ctx.fillStyle = '#475569';
+        ctx.fillText(item.note || '最後合約約定設定', cx + 12, curY + 22);
+
+        curY += 32;
+      });
+
+      // 7. 頁尾
+      ctx.textAlign = 'center';
+      ctx.font = '16px "Microsoft JhengHei", sans-serif';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText(`Minerva-ETL 系統自動產生 ｜ 機密文件請勿外流 ｜ 產生時間：${new Date().toISOString().substring(0, 10)}`, W / 2, 1660);
+
+      // 2. 將 Canvas 轉為 A4 PDF
+      const pngUrl = canvas.toDataURL('image/png');
+      const binStr = atob(pngUrl.split(',')[1]);
+      const pngBytes = new Uint8Array(binStr.length);
+      for (let i = 0; i < binStr.length; i++) pngBytes[i] = binStr.charCodeAt(i);
+
+      const pdfDoc = await window.PDFLib.PDFDocument.create();
+      const page = pdfDoc.addPage([595.28, 841.89]);
+      const pngImage = await pdfDoc.embedPng(pngBytes);
+      page.drawImage(pngImage, {
+        x: 0,
+        y: 0,
+        width: 595.28,
+        height: 841.89
+      });
+
+      let downloadBytes = await pdfDoc.save();
+      if (isEnc) {
+        if (!window.PdfLibEncrypt) {
+          alert('⚠️ 加密模組載入中，請稍候重試！');
+          return;
+        }
+        window.PdfLibEncrypt.configure(window.PDFLib);
+        downloadBytes = await window.PdfLibEncrypt.lock(downloadBytes, pwd);
+      }
+
+      // 3. 直接由瀏覽器觸發下載至電腦 Downloads 資料夾
+      const blob = new Blob([downloadBytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const downloadLink = document.createElement('a');
+      downloadLink.href = url;
+      downloadLink.download = pdfFileName;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('PDF 動態生成下載失敗:', err);
+      alert('⚠️ PDF 下載處理失敗：' + (err.message || err));
+    }
+  });
+</script>
+
+</body>
+</html>
