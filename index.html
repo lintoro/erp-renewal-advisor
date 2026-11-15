@@ -181,12 +181,70 @@
     .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
     .tab-btn { padding: 8px 16px; border-radius: 6px; border: 1px solid var(--border); background: #f1f5f9; cursor: pointer; font-size: 13px; font-weight: 600; }
     .tab-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
-    .tab-pane { display: none; overflow-x: auto; max-height: 340px; }
+    .tab-pane { display: none; overflow-x: auto; overflow-y: auto; max-height: 620px; }
     .tab-pane.active { display: block; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
     th, td { padding: 8px 12px; border: 1px solid var(--border); text-align: left; }
     th { background: #f8fafc; font-weight: 600; position: sticky; top: 0; z-index: 1; }
     tr:nth-child(even) { background: #fdfdfd; }
+
+    /* 各勾選期別獨立條件明細卡片 */
+    .period-section-heading {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--primary);
+      margin: 18px 0 8px;
+      padding-left: 8px;
+      border-left: 4px solid var(--primary-light);
+    }
+    .period-detail-card {
+      border: 1px solid #cbd5e1;
+      border-left: 4px solid var(--primary);
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+      background: #ffffff;
+    }
+    .period-detail-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .period-detail-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    .period-status-badge {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 2px 10px;
+      border-radius: 12px;
+      background: #e0f2fe;
+      color: #0369a1;
+    }
+    .period-meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 8px 14px;
+      font-size: 13px;
+      margin-bottom: 10px;
+      background: #f8fafc;
+      padding: 10px 12px;
+      border-radius: 6px;
+    }
+    .period-meta-grid div strong { color: var(--text-muted); font-weight: 600; }
+    .period-sub-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      margin: 10px 0 6px;
+    }
   </style>
 </head>
 <body>
@@ -343,6 +401,7 @@
 
       <div class="tab-pane active" id="pane-0">
         <table id="tbl-terms"></table>
+        <div id="period-terms-container"></div>
       </div>
       <div class="tab-pane" id="pane-1">
         <table id="tbl-financials"></table>
@@ -860,6 +919,235 @@ function computeLeasingAdvisory(dossierMeta, terms, financials, counterContracts
     points: negotiationPoints
   };
 }
+function matchCommissionForPeriod(commRows, pStartDate, pEndDate) {
+  if (!commRows || commRows.length === 0) {
+    return {
+      commType: '一般抽成',
+      commCat: '標準抽成',
+      taxType: '-',
+      baseRate: 0,
+      rate90: 0,
+      rate80: 0,
+      rate70: 0,
+      rate60: 0,
+      rate50: 0,
+      specialRate: 0
+    };
+  }
+  let matched = null;
+  if (pStartDate && pEndDate) {
+    matched = commRows.find(cr => {
+      const cs = parseDate(cr['合約起始日'] || cr['開始日期']);
+      const ce = parseDate(cr['合約截止日'] || cr['終止日期']);
+      return cs === pStartDate && ce === pEndDate;
+    });
+    if (!matched) {
+      matched = commRows.find(cr => {
+        const cs = parseDate(cr['合約起始日'] || cr['開始日期']);
+        const ce = parseDate(cr['合約截止日'] || cr['終止日期']);
+        return cs && ce && cs <= pEndDate && ce >= pStartDate;
+      });
+    }
+  }
+  const row = matched || commRows[0];
+  const baseRate = safeNum(row['正品']);
+  const rate90 = safeNum(row['90折']) || (baseRate > 0 ? baseRate - 1 : 0);
+  const rate80 = safeNum(row['80折']) || (baseRate > 0 ? baseRate - 2 : 0);
+  return {
+    commType: row['抽成別'] || '一般抽成',
+    commCat: row['抽成類別名稱'] || '標準抽成',
+    taxType: row['稅別'] || '-',
+    baseRate,
+    rate90,
+    rate80,
+    rate70: safeNum(row['70折']),
+    rate60: safeNum(row['60折']),
+    rate50: safeNum(row['50折']),
+    specialRate: safeNum(row['特價'])
+  };
+}
+
+function computeDeductionBreakdown(deductRows, isDetailMatrix, rangeStartYM, rangeEndYM, fallbackStartDate, fallbackEndDate) {
+  const items = [];
+  let total = 0;
+  let refMonth = '';
+  let contractNo = '';
+  let monthCount = 0;
+
+  if (!deductRows || deductRows.length === 0) {
+    return { items, total, refMonth, contractNo, monthCount };
+  }
+
+  if (isDetailMatrix) {
+    const inRangeDeducts = deductRows
+      .filter(d => {
+        const ym = String(d['結帳年月'] || '').trim();
+        return ym.length === 6 && (!rangeStartYM || ym >= rangeStartYM) && (!rangeEndYM || ym <= rangeEndYM);
+      })
+      .sort((a, b) => String(a['結帳年月']).localeCompare(String(b['結帳年月'])));
+
+    monthCount = inRangeDeducts.length;
+    const lastRec = inRangeDeducts.length > 0 ? inRangeDeducts[inRangeDeducts.length - 1] : null;
+
+    if (lastRec) {
+      const ymRaw = String(lastRec['結帳年月']).trim();
+      refMonth = ymRaw.length === 6 ? `${ymRaw.substring(0, 4)}-${ymRaw.substring(4, 6)}` : ymRaw;
+      contractNo = String(lastRec['合約編號'] || '').trim();
+
+      const rawKeys = Object.keys(lastRec);
+      const cleanKeyMap = {};
+      rawKeys.forEach(k => {
+        cleanKeyMap[k.replace(/\r|\n/g, '').trim()] = k;
+      });
+
+      const isRuleIgnore = (code, name) => ['Z08', 'Z09', 'TAX'].includes(code) || (code && code.toUpperCase().includes('TAX')) || (name && name.includes('稅額'));
+      const isRuleAverage = (code) => ['Z01', 'Z02', 'Z03', 'Z05', 'Z06'].includes(code);
+      const isRuleDirectZ04 = (code) => code === 'Z04';
+      const isRuleZ07 = (code) => code === 'Z07';
+
+      const deductionKeys = Object.keys(cleanKeyMap).filter(k =>
+        (k.includes('/') || k.includes('稅額')) && !k.includes('結帳') && !k.includes('總計')
+      );
+
+      deductionKeys.forEach(cleanK => {
+        const rawK = cleanKeyMap[cleanK];
+        const code = cleanK.split('/')[0].trim();
+        const name = cleanK;
+
+        if (isRuleIgnore(code, name)) return;
+
+        if (isRuleAverage(code)) {
+          const totalSum = inRangeDeducts.reduce((sum, r) => sum + safeNum(r[rawK]), 0);
+          if (totalSum > 0) {
+            const avg = Math.round(totalSum / inRangeDeducts.length);
+            items.push({
+              code,
+              name,
+              amount: avg,
+              calcType: 'average',
+              note: `浮動費用 (期間 ${inRangeDeducts.length} 個月平均，累計 NT$ ${totalSum.toLocaleString()})`,
+              month: refMonth,
+              contractNo
+            });
+            total += avg;
+          }
+          return;
+        }
+
+        if (isRuleZ07(code)) {
+          const monthVals = inRangeDeducts.map(r => {
+            const ymStr = String(r['結帳年月'] || '').trim();
+            const ymFmt = ymStr.length === 6 ? `${ymStr.substring(0, 4)}-${ymStr.substring(4, 6)}` : ymStr;
+            return { month: ymFmt, amount: safeNum(r[rawK]) };
+          });
+          const totalSum = monthVals.reduce((sum, r) => sum + r.amount, 0);
+          const nonZeroVals = monthVals.filter(r => r.amount > 0);
+          if (totalSum > 0) {
+            const avg = Math.round(totalSum / inRangeDeducts.length);
+            const maxItem = monthVals.reduce((max, r) => r.amount > max.amount ? r : max, monthVals[0]);
+            const minItem = nonZeroVals.length > 0
+              ? nonZeroVals.reduce((min, r) => r.amount < min.amount ? r : min, nonZeroVals[0])
+              : monthVals.reduce((min, r) => r.amount < min.amount ? r : min, monthVals[0]);
+            items.push({
+              code,
+              name,
+              amount: avg,
+              calcType: 'average_with_extremes',
+              note: `期間平均 (最高 NT$ ${maxItem.amount.toLocaleString()} [${maxItem.month}]，最低 NT$ ${minItem.amount.toLocaleString()} [${minItem.month}])`,
+              month: refMonth,
+              contractNo
+            });
+            total += avg;
+          }
+          return;
+        }
+
+        const isA01A02 = ['A01', 'A02'].includes(code);
+        const isZItem = code.startsWith('Z');
+        if (isZItem) {
+          const inRangeZSum = inRangeDeducts.reduce((sum, r) => sum + safeNum(r[rawK]), 0);
+          if (inRangeZSum <= 0) return;
+          const avgZ = Math.round(inRangeZSum / inRangeDeducts.length);
+          const noteZ = isRuleDirectZ04(code)
+            ? `收銀機檔期租借費 (期間 ${inRangeDeducts.length} 個月平均，累計 NT$ ${inRangeZSum.toLocaleString()})`
+            : `浮動費用 (期間 ${inRangeDeducts.length} 個月平均，累計 NT$ ${inRangeZSum.toLocaleString()})`;
+          items.push({
+            code,
+            name,
+            amount: avgZ,
+            calcType: 'average',
+            note: noteZ,
+            month: refMonth,
+            contractNo
+          });
+          total += avgZ;
+          return;
+        }
+
+        if (isA01A02) {
+          const inRangeASum = inRangeDeducts.reduce((sum, r) => sum + safeNum(r[rawK]), 0);
+          if (inRangeASum > 0) {
+            const avgA = Math.round(inRangeASum / inRangeDeducts.length);
+            items.push({
+              code,
+              name,
+              amount: avgA,
+              calcType: 'average',
+              note: `期間出現 (累計 NT$ ${inRangeASum.toLocaleString()}，月均 NT$ ${avgA.toLocaleString()})`,
+              month: refMonth,
+              contractNo
+            });
+            total += avgA;
+          }
+          return;
+        }
+
+        const amt = safeNum(lastRec[rawK]);
+        if (amt > 0) {
+          items.push({
+            code,
+            name,
+            amount: amt,
+            calcType: 'direct',
+            note: '合約約定設定',
+            month: refMonth,
+            contractNo
+          });
+          total += amt;
+        }
+      });
+    }
+  } else {
+    const filtered = deductRows.filter(d => {
+      const ds = String(d['扣款起始月份'] || '').replace(/-/g, '').trim();
+      const de = String(d['扣款結束月份'] || '').replace(/-/g, '').trim();
+      if (ds && de && rangeStartYM && rangeEndYM) {
+        return ds <= rangeEndYM && de >= rangeStartYM;
+      }
+      return true;
+    });
+    filtered.forEach(d => {
+      const amt = safeNum(d['每月金額'] || d['總金額'] || d['扣款金額(未稅)']);
+      if (amt > 0) {
+        items.push({
+          name: d['扣款項目名稱'] || '合約代扣項目',
+          amount: amt,
+          note: '合約代扣項目',
+          month: d['扣款起始月份'] || (fallbackStartDate ? fallbackStartDate.substring(0, 7) : ''),
+          contractNo: d['合約編號'] || ''
+        });
+        total += amt;
+        if (!contractNo && d['合約編號']) contractNo = String(d['合約編號']).trim();
+      }
+    });
+    refMonth = filtered.length > 0
+      ? (filtered[filtered.length - 1]['扣款結束月份'] || (fallbackEndDate ? fallbackEndDate.substring(0, 7) : ''))
+      : '';
+  }
+
+  return { items, total, refMonth, contractNo, monthCount };
+}
+
 function runEvaluation() {
     const cId = document.getElementById('selectCounter').value;
     if (!cId || state.selectedVersions.length === 0) {
@@ -870,7 +1158,14 @@ function runEvaluation() {
     }
 
     const allContracts = state.tables.contracts.filter(c => String(c['專櫃編號'] || '').padStart(5, '0') === cId);
-    const activeContracts = allContracts.filter(c => state.selectedVersions.includes(String(c['版本編號'])));
+    const activeContracts = allContracts
+      .filter(c => state.selectedVersions.includes(String(c['版本編號'])))
+      .sort((a, b) => {
+        const da = parseDate(a['合約起始日']) || '';
+        const db = parseDate(b['合約起始日']) || '';
+        if (da !== db) return da.localeCompare(db);
+        return String(a['版本編號'] || '').localeCompare(String(b['版本編號'] || ''), undefined, { numeric: true });
+      });
     if (activeContracts.length === 0) return;
 
     const primary = activeContracts[0];
@@ -923,164 +1218,13 @@ function runEvaluation() {
     const monthlyDeductMap = {};
     let totalDeductSum = 0;
 
-    const latestContractDeductionItems = [];
-    let latestContractMonth = '';
-    let latestContractNo = '';
-    let latestDeductionTotal = 0;
+    const overallDeduction = computeDeductionBreakdown(deductRows, isDetailMatrix, startYM, endYM, earliestStart, latestEnd);
+    const latestContractDeductionItems = overallDeduction.items;
+    const latestContractMonth = overallDeduction.refMonth;
+    const latestContractNo = overallDeduction.contractNo;
+    const latestDeductionTotal = overallDeduction.total;
 
     if (isDetailMatrix) {
-      const validDeducts = deductRows.filter(d => String(d['結帳年月'] || '').trim().length === 6)
-                                     .sort((a, b) => String(a['結帳年月']).localeCompare(String(b['結帳年月'])));
-      const inRangeDeducts = deductRows.filter(d => {
-        const ym = String(d['結帳年月'] || '').trim();
-        return ym >= startYM && ym <= endYM;
-      });
-      const lastRec = validDeducts.length > 0 ? validDeducts[validDeducts.length - 1] : null;
-
-      if (lastRec) {
-        const ymRaw = String(lastRec['結帳年月']).trim();
-        latestContractMonth = `${ymRaw.substring(0, 4)}-${ymRaw.substring(4, 6)}`;
-        latestContractNo = String(lastRec['合約編號'] || '').trim();
-
-        const rawKeys = Object.keys(lastRec);
-        const cleanKeyMap = {};
-        rawKeys.forEach(k => {
-          cleanKeyMap[k.replace(/\r|\n/g, '').trim()] = k;
-        });
-
-        const isRuleIgnore = (code, name) => ['Z08', 'Z09', 'TAX'].includes(code) || (code && code.toUpperCase().includes('TAX')) || (name && name.includes('稅額'));
-        const isRuleAverage = (code) => ['Z01', 'Z02', 'Z03', 'Z05', 'Z06'].includes(code);
-        const isRuleDirectZ04 = (code) => code === 'Z04';
-        const isRuleZ07 = (code) => code === 'Z07';
-
-        const deductionKeys = Object.keys(cleanKeyMap).filter(k => 
-          (k.includes('/') || k.includes('稅額')) && !k.includes('結帳') && !k.includes('總計')
-        );
-
-        deductionKeys.forEach(cleanK => {
-          const rawK = cleanKeyMap[cleanK];
-          const code = cleanK.split('/')[0].trim();
-          const name = cleanK;
-
-          if (isRuleIgnore(code, name)) return;
-
-          if (isRuleAverage(code)) {
-            const evalRecs = inRangeDeducts;
-            if (!evalRecs || evalRecs.length === 0) return;
-            const totalSum = evalRecs.reduce((sum, r) => sum + safeNum(r[rawK]), 0);
-
-            if (totalSum > 0) {
-              const avg = Math.round(totalSum / evalRecs.length);
-              const periodNote = `(勾選期間 ${evalRecs.length} 個月平均，累計 NT$ ${totalSum.toLocaleString()})`;
-
-              latestContractDeductionItems.push({
-                code,
-                name,
-                amount: avg,
-                calcType: 'average',
-                note: `浮動費用 ${periodNote}`,
-                month: latestContractMonth,
-                contractNo: latestContractNo
-              });
-              latestDeductionTotal += avg;
-            }
-            return;
-          }
-
-          if (isRuleZ07(code)) {
-            const recs = inRangeDeducts;
-            if (!recs || recs.length === 0) return;
-
-            const monthVals = recs.map(r => {
-              const ymStr = String(r['結帳年月'] || '').trim();
-              const ymFmt = ymStr.length === 6 ? `${ymStr.substring(0, 4)}-${ymStr.substring(4, 6)}` : ymStr;
-              return { month: ymFmt, amount: safeNum(r[rawK]) };
-            });
-
-            const totalSum = monthVals.reduce((sum, r) => sum + r.amount, 0);
-            const nonZeroVals = monthVals.filter(r => r.amount > 0);
-
-            if (totalSum > 0) {
-              const avg = Math.round(totalSum / recs.length);
-              const maxItem = monthVals.reduce((max, r) => r.amount > max.amount ? r : max, monthVals[0]);
-              const minItem = nonZeroVals.length > 0 
-                ? nonZeroVals.reduce((min, r) => r.amount < min.amount ? r : min, nonZeroVals[0])
-                : monthVals.reduce((min, r) => r.amount < min.amount ? r : min, monthVals[0]);
-
-              const note = `勾選期間平均 (最高 NT$ ${maxItem.amount.toLocaleString()} [${maxItem.month}]，最低 NT$ ${minItem.amount.toLocaleString()} [${minItem.month}])`;
-
-              latestContractDeductionItems.push({
-                code,
-                name,
-                amount: avg,
-                calcType: 'average_with_extremes',
-                note,
-                month: latestContractMonth,
-                contractNo: latestContractNo
-              });
-              latestDeductionTotal += avg;
-            }
-            return;
-          }
-
-          // A01, A02 若在勾選合約期間中有出現，一併顯示出來；Z 開頭項目僅依勾選期間顯示
-          const isA01A02 = ['A01', 'A02'].includes(code);
-          const isZItem = code.startsWith('Z');
-          if (isZItem) {
-            const inRangeZSum = inRangeDeducts.reduce((sum, r) => sum + safeNum(r[rawK]), 0);
-            if (inRangeZSum <= 0) return;
-            const avgZ = Math.round(inRangeZSum / inRangeDeducts.length);
-            const noteZ = isRuleDirectZ04(code)
-              ? `收銀機檔期租借費 (勾選期間 ${inRangeDeducts.length} 個月平均，累計 NT$ ${inRangeZSum.toLocaleString()})`
-              : `浮動費用 (勾選期間 ${inRangeDeducts.length} 個月平均，累計 NT$ ${inRangeZSum.toLocaleString()})`;
-            latestContractDeductionItems.push({
-              code,
-              name,
-              amount: avgZ,
-              calcType: 'average',
-              note: noteZ,
-              month: latestContractMonth,
-              contractNo: latestContractNo
-            });
-            latestDeductionTotal += avgZ;
-            return;
-          }
-
-          if (isA01A02) {
-            const inRangeASum = inRangeDeducts.reduce((sum, r) => sum + safeNum(r[rawK]), 0);
-            if (inRangeASum > 0) {
-              const avgA = Math.round(inRangeASum / inRangeDeducts.length);
-              latestContractDeductionItems.push({
-                code,
-                name,
-                amount: avgA,
-                calcType: 'average',
-                note: `勾選期間出現 (累計 NT$ ${inRangeASum.toLocaleString()}，月均 NT$ ${avgA.toLocaleString()})`,
-                month: latestContractMonth,
-                contractNo: latestContractNo
-              });
-              latestDeductionTotal += avgA;
-            }
-            return;
-          }
-
-          const amt = safeNum(lastRec[rawK]);
-          if (amt > 0) {
-            let note = '最後合約約定設定';
-            latestContractDeductionItems.push({
-              code,
-              name,
-              amount: amt,
-              calcType: 'direct',
-              note,
-              month: latestContractMonth,
-              contractNo: latestContractNo
-            });
-            latestDeductionTotal += amt;
-          }
-        });
-      }
-
       deductRows.forEach(d => {
         const ymRaw = String(d['結帳年月'] || '').trim();
         if (ymRaw >= startYM && ymRaw <= endYM) {
@@ -1090,20 +1234,6 @@ function runEvaluation() {
           totalDeductSum += tot;
         }
       });
-    } else {
-      deductRows.forEach(d => {
-        const amt = safeNum(d['每月金額'] || d['總金額'] || d['扣款金額(未稅)']);
-        if (amt > 0) {
-          latestContractDeductionItems.push({
-            name: d['扣款項目名稱'] || '合約代扣項目',
-            amount: amt,
-            month: d['扣款起始月份'] || earliestStart.substring(0, 7),
-            contractNo: d['合約編號'] || ''
-          });
-          latestDeductionTotal += amt;
-        }
-      });
-      latestContractMonth = deductRows.length > 0 ? (deductRows[deductRows.length - 1]['扣款結束月份'] || latestEnd.substring(0, 7)) : '';
     }
 
     // 處理月結營收表 (MONTHLY)
@@ -1230,11 +1360,56 @@ function runEvaluation() {
       h.mallRev = h.comm + h.deduct + h.shortfall;
     });
 
+    const periodDetails = activeContracts.map(c => {
+      const ver = String(c['版本編號'] || '').trim();
+      const status = String(c['租戶狀況'] || '-').trim();
+      const contractType = String(c['合約種類'] || '合約書').trim();
+      const pStart = parseDate(c['合約起始日']) || '';
+      const pEnd = parseDate(c['合約截止日']) || '';
+      const opStart = parseDate(c['正式營運起始日']) || pStart;
+      const opEnd = parseDate(c['正式營運截止日']) || pEnd;
+      const pStartYM = pStart ? pStart.substring(0, 7).replace('-', '') : '';
+      const pEndYM = pEnd ? pEnd.substring(0, 7).replace('-', '') : '';
+      const pStartDash = pStart ? pStart.substring(0, 7) : '';
+      const pEndDash = pEnd ? pEnd.substring(0, 7) : '';
+
+      const comm = matchCommissionForPeriod(commRows, pStart, pEnd);
+      const deductions = computeDeductionBreakdown(deductRows, isDetailMatrix, pStartYM, pEndYM, pStart, pEnd);
+      const periodRecs = records.filter(r => (!pStartDash || r.month >= pStartDash) && (!pEndDash || r.month <= pEndDash));
+      const periodSales = periodRecs.reduce((s, r) => s + (r.sales_untaxed || 0), 0);
+      const periodComm = periodRecs.reduce((s, r) => s + (r.comm_total || 0), 0);
+      const periodDeduct = periodRecs.reduce((s, r) => s + (r.deduct || 0), 0);
+      const periodShortfallCount = periodRecs.filter(r => (r.baseRentShortfall || 0) > 0).length;
+
+      return {
+        version: ver,
+        status,
+        contractType,
+        startDate: pStart,
+        endDate: pEnd,
+        opStartDate: opStart,
+        opEndDate: opEnd,
+        boothNo: String(c['櫃位編號'] || '').trim() || '標準櫃位',
+        floor: String(c['樓層名稱'] || '').trim() || floor,
+        area: String(c['區域名稱'] || '').trim() || '一般商場',
+        industry: String(c['業種名稱'] || c['業種編號'] || '').trim() || industry,
+        comm,
+        deductions,
+        performance: {
+          monthCount: periodRecs.length,
+          totalSales: periodSales,
+          totalComm: periodComm,
+          totalDeduct: periodDeduct,
+          shortfallCount: periodShortfallCount
+        }
+      };
+    });
+
     state.dossier = {
       meta: {
         counterId: cId,
         counterName: cName,
-        selectedVersions: state.selectedVersions,
+        selectedVersions: activeContracts.map(c => String(c['版本編號'])),
         floor,
         industry,
         startDate: earliestStart,
@@ -1242,6 +1417,7 @@ function runEvaluation() {
         storeArea: (document.getElementById('inputArea') && document.getElementById('inputArea').value.trim()) ? document.getElementById('inputArea').value.trim() : '',
         periodDescriptions: activeContracts.map(c => `第 ${c['版本編號']} 期 [${c['租戶狀況']}]: ${parseDate(c['合約起始日'])} ~ ${parseDate(c['合約截止日'])}`)
       },
+      periodDetails,
       terms: {
         commType,
         baseRate: baseRate > 0 ? `${baseRate}%` : '15%',
@@ -1302,6 +1478,9 @@ function runEvaluation() {
       ['項目', '約定與精算內容'],
       ['專櫃編號 / 名稱', `${d.meta.counterId} / ${d.meta.counterName}`],
       ['納入評比期別', `第 ${d.meta.selectedVersions.join('、')} 期`],
+      ...(d.meta.periodDescriptions && d.meta.periodDescriptions.length > 0
+        ? [['── 勾選合約期別明細 ──', '───────────────'], ...d.meta.periodDescriptions.map(desc => ['• 合約期別', desc])]
+        : []),
       ['建議續約方向', a.renewalAction],
       ['建議抽成調整', `${a.currentRate} ➔ ${a.recRate} (${a.rateChange})`],
       ['建議月保底額', a.recBaseRent],
@@ -1315,6 +1494,73 @@ function runEvaluation() {
       });
     }
     renderTable('tbl-terms', termsRows);
+
+    const periodContainer = document.getElementById('period-terms-container');
+    if (periodContainer) {
+      if (d.periodDetails && d.periodDetails.length > 0) {
+        const cardsHtml = d.periodDetails.map(p => {
+          const c = p.comm || {};
+          const ded = p.deductions || { items: [], total: 0, refMonth: '', contractNo: '' };
+          const perf = p.performance || { monthCount: 0, totalSales: 0, totalComm: 0, totalDeduct: 0, shortfallCount: 0 };
+
+          const extraRates = [];
+          if (c.rate70 > 0) extraRates.push(`70折 ${c.rate70}%`);
+          if (c.rate60 > 0) extraRates.push(`60折 ${c.rate60}%`);
+          if (c.rate50 > 0) extraRates.push(`50折 ${c.rate50}%`);
+          if (c.specialRate > 0) extraRates.push(`特價 ${c.specialRate}%`);
+          const rateSummary = `正品 ${c.baseRate > 0 ? c.baseRate + '%' : '-'} ｜ 90折 ${c.rate90 > 0 ? c.rate90 + '%' : '-'} ｜ 80折 ${c.rate80 > 0 ? c.rate80 + '%' : '-'}${extraRates.length ? ' ｜ ' + extraRates.join(' ｜ ') : ''}`;
+
+          const dedRowsHtml = ded.items && ded.items.length > 0
+            ? ded.items.map(item => `
+                <tr>
+                  <td>${item.name}</td>
+                  <td style="text-align:right; font-weight:600;">NT$ ${(item.amount || 0).toLocaleString()}</td>
+                  <td>${item.note || '-'}</td>
+                </tr>`).join('') + `
+                <tr style="background:#f1f5f9; font-weight:700;">
+                  <td>該期扣款合計（基準月：${ded.refMonth || '-'}）</td>
+                  <td style="text-align:right;">NT$ ${(ded.total || 0).toLocaleString()}</td>
+                  <td>${ded.contractNo ? '合約號：' + ded.contractNo : '月固定/期間均攤合計'}</td>
+                </tr>`
+            : `<tr><td colspan="3" style="color:var(--text-muted); text-align:center;">此合約期間無匹配之扣款明細紀錄</td></tr>`;
+
+          return `
+            <div class="period-detail-card">
+              <div class="period-detail-header">
+                <div class="period-detail-title">📄 第 ${p.version} 期條件明細（${p.startDate || '-'} ~ ${p.endDate || '-'}）</div>
+                <span class="period-status-badge">${p.status} ｜ ${p.contractType}</span>
+              </div>
+              <div class="period-meta-grid">
+                <div><strong>合約起迄日：</strong>${p.startDate || '-'} ~ ${p.endDate || '-'}</div>
+                <div><strong>正式營運日：</strong>${p.opStartDate || '-'} ~ ${p.opEndDate || '-'}</div>
+                <div><strong>合約編號：</strong>${ded.contractNo || '-'}</div>
+                <div><strong>櫃位 / 樓層 / 區域：</strong>${p.boothNo} / ${p.floor} / ${p.area}</div>
+                <div><strong>業種分類：</strong>${p.industry}</div>
+                <div><strong>抽成模式 / 稅別：</strong>${c.commType}（${c.commCat} / ${c.taxType}）</div>
+                <div style="grid-column: 1 / -1;"><strong>抽成費率矩陣：</strong>${rateSummary}</div>
+                <div><strong>期間涵蓋月數：</strong>${perf.monthCount} 個月</div>
+                <div><strong>期間銷售淨額 (未稅)：</strong>NT$ ${perf.totalSales.toLocaleString()}</div>
+                <div><strong>期間抽成總額 (含稅)：</strong>NT$ ${perf.totalComm.toLocaleString()}</div>
+                <div><strong>期間實扣款項：</strong>NT$ ${perf.totalDeduct.toLocaleString()}${perf.shortfallCount > 0 ? ' ｜ 🔴 未達包底 ' + perf.shortfallCount + ' 個月' : ''}</div>
+              </div>
+              <div class="period-sub-title">該期扣款設定與費用明細</div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>扣款項目名稱</th>
+                    <th style="text-align:right;">設定 / 月均金額 (元)</th>
+                    <th>性質與計算備註</th>
+                  </tr>
+                </thead>
+                <tbody>${dedRowsHtml}</tbody>
+              </table>
+            </div>`;
+        }).join('');
+        periodContainer.innerHTML = `<div class="period-section-heading">📋 各勾選期別獨立條件與扣款明細（共 ${d.periodDetails.length} 期）</div>` + cardsHtml;
+      } else {
+        periodContainer.innerHTML = '';
+      }
+    }
 
     const finHeaders = ['月份', '銷售淨額 (未稅)', '銷售含稅合計', '抽成額 (未稅)', '抽成含稅合計', '實扣款項', d.isBaseRentCounter ? '未稅抽成率 / 未達包底' : '未稅抽成率', '商場總實收', '專櫃實得淨額'];
     const finRows = [finHeaders];
@@ -1509,6 +1755,24 @@ function runEvaluation() {
     } else {
       s1Rows.push(['無匹配之扣款細項紀錄', 0, '-']);
     }
+    if (d.periodDetails && d.periodDetails.length > 0) {
+      d.periodDetails.forEach(p => {
+        const c = p.comm || {};
+        const ded = p.deductions || { items: [], total: 0, refMonth: '', contractNo: '' };
+        const perf = p.performance || { monthCount: 0, totalSales: 0, totalComm: 0, totalDeduct: 0, shortfallCount: 0 };
+        s1Rows.push(['', '', '']);
+        s1Rows.push([`【第 ${p.version} 期條件明細 (${p.status})】`, `${p.startDate} ~ ${p.endDate}`, ded.contractNo ? `合約號：${ded.contractNo}` : '']);
+        s1Rows.push(['抽成模式 / 稅別', `${c.commType} (${c.commCat} / ${c.taxType})`, `正品 ${c.baseRate || '-'}% / 90折 ${c.rate90 || '-'}% / 80折 ${c.rate80 || '-'}%`]);
+        s1Rows.push(['期間營運摘要', `${perf.monthCount} 個月 | 銷售淨額 NT$ ${perf.totalSales.toLocaleString()}`, `抽成 NT$ ${perf.totalComm.toLocaleString()} | 實扣 NT$ ${perf.totalDeduct.toLocaleString()}`]);
+        if (ded.items && ded.items.length > 0) {
+          s1Rows.push(['扣款項目名稱', '設定/月均金額 (元)', '性質與計算備註']);
+          ded.items.forEach(item => s1Rows.push([item.name, item.amount, item.note || '']));
+          s1Rows.push([`第 ${p.version} 期扣款合計`, ded.total || 0, ded.refMonth ? `基準月：${ded.refMonth}` : '']);
+        } else {
+          s1Rows.push(['扣款明細', 0, '此合約期間無匹配之扣款明細紀錄']);
+        }
+      });
+    }
     const ws1 = XLSX.utils.aoa_to_sheet(s1Rows);
     XLSX.utils.book_append_sheet(wb, ws1, '條件明細');
 
@@ -1680,34 +1944,91 @@ function runEvaluation() {
           </div>
         </div>
 
-        <!-- 最後一份合約扣款設定明細 -->
-        <div class="m-card">
-          <div class="m-sec-title">📌 最後一份合約扣款設定明細 (基準月份：${d.terms.latestContractMonth || '最新期別'}，合計：NT$ ${(d.terms.latestDeductionTotal || 0).toLocaleString()})</div>
-          <div class="m-table-wrapper">
-            <table class="m-table">
-              <thead>
-                <tr>
-                  <th>扣款項目名稱</th>
-                  <th>約定/月均金額</th>
-                  <th>性質與計算備註</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${(d.terms.latestDeductions && d.terms.latestDeductions.length > 0) ? d.terms.latestDeductions.map(item => `
+        <!-- 各勾選期別條件與扣款明細 -->
+        ${(d.periodDetails && d.periodDetails.length > 0) ? d.periodDetails.map(p => {
+          const c = p.comm || {};
+          const ded = p.deductions || { items: [], total: 0, refMonth: '', contractNo: '' };
+          const perf = p.performance || { monthCount: 0, totalSales: 0, totalComm: 0, totalDeduct: 0, shortfallCount: 0 };
+          const extraRates = [];
+          if (c.rate70 > 0) extraRates.push(`70折 ${c.rate70}%`);
+          if (c.rate60 > 0) extraRates.push(`60折 ${c.rate60}%`);
+          if (c.rate50 > 0) extraRates.push(`50折 ${c.rate50}%`);
+          if (c.specialRate > 0) extraRates.push(`特價 ${c.specialRate}%`);
+          const rateSummary = `正品 ${c.baseRate > 0 ? c.baseRate + '%' : '-'} ｜ 90折 ${c.rate90 > 0 ? c.rate90 + '%' : '-'} ｜ 80折 ${c.rate80 > 0 ? c.rate80 + '%' : '-'}${extraRates.length ? ' ｜ ' + extraRates.join(' ｜ ') : ''}`;
+          return `
+            <div class="m-card" style="border-left: 4px solid #1e3a8a;">
+              <div class="m-sec-title" style="justify-content:space-between; flex-wrap:wrap;">
+                <span>📄 第 ${p.version} 期條件明細（${p.startDate || '-'} ~ ${p.endDate || '-'}）</span>
+                <span style="font-size:10px; background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:8px;">${p.status} ｜ ${p.contractType}</span>
+              </div>
+              <div style="font-size:11px; color:#334155; background:#f8fafc; padding:8px; border-radius:6px; margin-bottom:8px; line-height:1.6;">
+                <div><strong>合約編號：</strong>${ded.contractNo || '-'} ｜ <strong>櫃位/樓層：</strong>${p.boothNo} / ${p.floor}</div>
+                <div><strong>正式營運：</strong>${p.opStartDate || '-'} ~ ${p.opEndDate || '-'} ｜ <strong>業種：</strong>${p.industry}</div>
+                <div><strong>抽成模式：</strong>${c.commType}（${c.commCat} / ${c.taxType}）</div>
+                <div><strong>費率矩陣：</strong>${rateSummary}</div>
+                <div><strong>期間實績：</strong>${perf.monthCount} 個月 ｜ 銷售淨額 NT$ ${perf.totalSales.toLocaleString()} ｜ 抽成 NT$ ${perf.totalComm.toLocaleString()} ｜ 實扣 NT$ ${perf.totalDeduct.toLocaleString()}${perf.shortfallCount > 0 ? ' ｜ 🔴 未達包底 ' + perf.shortfallCount + ' 個月' : ''}</div>
+              </div>
+              <div class="m-table-wrapper">
+                <table class="m-table">
+                  <thead>
+                    <tr>
+                      <th>扣款項目名稱</th>
+                      <th>約定/月均金額</th>
+                      <th>性質與計算備註</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${(ded.items && ded.items.length > 0) ? ded.items.map(item => `
+                      <tr>
+                        <td style="font-weight:600; white-space:nowrap;">${item.name}</td>
+                        <td style="color:#2563eb; font-weight:700; white-space:nowrap;">NT$ ${(item.amount || 0).toLocaleString()}</td>
+                        <td style="font-size:11px; color:#475569;">${item.note || '-'}</td>
+                      </tr>
+                    `).join('') + `
+                      <tr style="background:#f1f5f9; font-weight:700;">
+                        <td>該期扣款合計（基準月：${ded.refMonth || '-'}）</td>
+                        <td style="color:#1e3a8a; white-space:nowrap;">NT$ ${(ded.total || 0).toLocaleString()}</td>
+                        <td style="font-size:11px; color:#475569;">${ded.contractNo ? '合約號：' + ded.contractNo : '月固定/期間均攤合計'}</td>
+                      </tr>
+                    ` : `
+                      <tr>
+                        <td colspan="3" style="text-align:center; color:#94a3b8;">此合約期間無匹配之扣款明細紀錄</td>
+                      </tr>
+                    `}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          `;
+        }).join('') : `
+          <div class="m-card">
+            <div class="m-sec-title">📌 最後一份合約扣款設定明細 (基準月份：${d.terms.latestContractMonth || '最新期別'}，合計：NT$ ${(d.terms.latestDeductionTotal || 0).toLocaleString()})</div>
+            <div class="m-table-wrapper">
+              <table class="m-table">
+                <thead>
                   <tr>
-                    <td style="font-weight:600; white-space:nowrap;">${item.name}</td>
-                    <td style="color:#2563eb; font-weight:700; white-space:nowrap;">NT$ ${item.amount.toLocaleString()}</td>
-                    <td style="font-size:11px; color:#475569;">${item.note || item.month || '最新合約約定設定'}</td>
+                    <th>扣款項目名稱</th>
+                    <th>約定/月均金額</th>
+                    <th>性質與計算備註</th>
                   </tr>
-                `).join('') : `
-                  <tr>
-                    <td colspan="3" style="text-align:center; color:#94a3b8;">無明細資料</td>
-                  </tr>
-                `}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  ${(d.terms.latestDeductions && d.terms.latestDeductions.length > 0) ? d.terms.latestDeductions.map(item => `
+                    <tr>
+                      <td style="font-weight:600; white-space:nowrap;">${item.name}</td>
+                      <td style="color:#2563eb; font-weight:700; white-space:nowrap;">NT$ ${item.amount.toLocaleString()}</td>
+                      <td style="font-size:11px; color:#475569;">${item.note || item.month || '最新合約約定設定'}</td>
+                    </tr>
+                  `).join('') : `
+                    <tr>
+                      <td colspan="3" style="text-align:center; color:#94a3b8;">無明細資料</td>
+                    </tr>
+                  `}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        `}
 
         <div class="m-footer">
           Minerva-ETL 系統自動產生 ｜ 機密文件請勿外流 ｜ 產生時間：${new Date().toISOString().substring(0, 10)}
@@ -1896,7 +2217,7 @@ function runEvaluation() {
       const canvas = document.createElement('canvas');
       canvas.width = W;
       canvas.height = H;
-      const ctx = canvas.getContext('2d');
+      let ctx = canvas.getContext('2d');
 
       // 背景純白
       ctx.fillStyle = '#ffffff';
@@ -2146,76 +2467,237 @@ function runEvaluation() {
         curY += 36;
       });
 
-      // 6. 檔尾扣款設定明細表格 (三欄完整表格)
-      curY += 24;
-      ctx.font = 'bold 21px "Microsoft JhengHei", sans-serif';
-      ctx.fillStyle = '#1e293b';
-      ctx.fillText(`📌 最後一份合約扣款設定明細 (基準月份：${d.terms.latestContractMonth || '最新期別'}，合計：NT$ ${(d.terms.latestDeductionTotal || 0).toLocaleString()})`, padX, curY);
+      // 6. 各勾選期別條件與扣款明細 (支援自動分頁，避免多期內容裁切)
+      const pagesCanvases = [{ canvas, ctx }];
+      const maxPageY = 1600;
 
-      curY += 16;
+      const startNewPdfPage = (subTitle) => {
+        const nc = document.createElement('canvas');
+        nc.width = W;
+        nc.height = H;
+        const nctx = nc.getContext('2d');
+        nctx.fillStyle = '#ffffff';
+        nctx.fillRect(0, 0, W, H);
+
+        nctx.fillStyle = '#0f2960';
+        nctx.fillRect(0, 0, W, 64);
+        nctx.textAlign = 'left';
+        nctx.font = 'bold 20px "Microsoft JhengHei", sans-serif';
+        nctx.fillStyle = '#ffffff';
+        nctx.fillText(`[${d.meta.counterId}] ${d.meta.counterName} ｜ ${subTitle || '各勾選期別條件與扣款明細'}`, padX, 40);
+
+        pagesCanvases.push({ canvas: nc, ctx: nctx });
+        ctx = nctx;
+        curY = 92;
+      };
+
+      const ensurePageSpace = (neededH, subTitle) => {
+        if (curY + neededH > maxPageY) {
+          startNewPdfPage(subTitle);
+        }
+      };
+
       const cols3 = [
         { name: '扣款項目名稱', w: 280 },
         { name: '約定/月均金額', w: 200 },
         { name: '性質與計算備註', w: 566 }
       ];
 
-      ctx.fillStyle = '#1e3a8a';
-      ctx.fillRect(padX, curY, contentW, 32);
-      ctx.font = 'bold 18px "Microsoft JhengHei", sans-serif';
-      ctx.fillStyle = '#ffffff';
-      colX = padX;
-      cols3.forEach(c => {
-        ctx.fillText(c.name, colX + 12, curY + 23);
-        colX += c.w;
-      });
-
-      curY += 32;
-      const deductItems = (d.terms.latestDeductions || []);
-      deductItems.forEach((item, idx) => {
-        ctx.fillStyle = idx % 2 === 1 ? '#f8fafc' : '#ffffff';
+      const drawPeriodTableHeader = () => {
+        ctx.fillStyle = '#1e3a8a';
         ctx.fillRect(padX, curY, contentW, 32);
-        ctx.strokeStyle = '#e2e8f0';
-        ctx.strokeRect(padX, curY, contentW, 32);
-
+        ctx.textAlign = 'left';
+        ctx.font = 'bold 17px "Microsoft JhengHei", sans-serif';
+        ctx.fillStyle = '#ffffff';
         let cx = padX;
-        ctx.font = 'bold 17px "Microsoft JhengHei", sans-serif';
-        ctx.fillStyle = '#1e293b';
-        ctx.fillText(item.name, cx + 12, curY + 22);
-        cx += cols3[0].w;
-
-        ctx.font = 'bold 17px "Microsoft JhengHei", sans-serif';
-        ctx.fillStyle = '#2563eb';
-        ctx.fillText(`NT$ ${item.amount.toLocaleString()}`, cx + 12, curY + 22);
-        cx += cols3[1].w;
-
-        ctx.font = '16px "Microsoft JhengHei", sans-serif';
-        ctx.fillStyle = '#475569';
-        ctx.fillText(item.note || '最後合約約定設定', cx + 12, curY + 22);
-
+        cols3.forEach(c => {
+          ctx.fillText(c.name, cx + 12, curY + 22);
+          cx += c.w;
+        });
         curY += 32;
-      });
+      };
 
-      // 7. 頁尾
-      ctx.textAlign = 'center';
-      ctx.font = '16px "Microsoft JhengHei", sans-serif';
-      ctx.fillStyle = '#94a3b8';
-      ctx.fillText(`Minerva-ETL 系統自動產生 ｜ 機密文件請勿外流 ｜ 產生時間：${new Date().toISOString().substring(0, 10)}`, W / 2, 1660);
+      curY += 24;
+      if (d.periodDetails && d.periodDetails.length > 0) {
+        ensurePageSpace(120, '各勾選期別條件與扣款明細');
+        ctx.textAlign = 'left';
+        ctx.font = 'bold 22px "Microsoft JhengHei", sans-serif';
+        ctx.fillStyle = '#0f2960';
+        ctx.fillText(`📋 各勾選期別條件與扣款明細（共 ${d.periodDetails.length} 期）`, padX, curY);
+        curY += 16;
 
-      // 2. 將 Canvas 轉為 A4 PDF
-      const pngUrl = canvas.toDataURL('image/png');
-      const binStr = atob(pngUrl.split(',')[1]);
-      const pngBytes = new Uint8Array(binStr.length);
-      for (let i = 0; i < binStr.length; i++) pngBytes[i] = binStr.charCodeAt(i);
+        d.periodDetails.forEach(p => {
+          const c = p.comm || {};
+          const ded = p.deductions || { items: [], total: 0, refMonth: '', contractNo: '' };
+          const perf = p.performance || { monthCount: 0, totalSales: 0, totalComm: 0, totalDeduct: 0, shortfallCount: 0 };
 
+          const extraRates = [];
+          if (c.rate70 > 0) extraRates.push(`70折 ${c.rate70}%`);
+          if (c.rate60 > 0) extraRates.push(`60折 ${c.rate60}%`);
+          if (c.rate50 > 0) extraRates.push(`50折 ${c.rate50}%`);
+          if (c.specialRate > 0) extraRates.push(`特價 ${c.specialRate}%`);
+          const rateSummary = `正品 ${c.baseRate > 0 ? c.baseRate + '%' : '-'} ｜ 90折 ${c.rate90 > 0 ? c.rate90 + '%' : '-'} ｜ 80折 ${c.rate80 > 0 ? c.rate80 + '%' : '-'}${extraRates.length ? ' ｜ ' + extraRates.join(' ｜ ') : ''}`;
+
+          // 預估該期卡片標頭 + 摘要 + 至少表頭與1列空間
+          ensurePageSpace(230, `第 ${p.version} 期條件與扣款明細`);
+
+          // 期別標題列
+          ctx.fillStyle = '#e0f2fe';
+          ctx.fillRect(padX, curY, contentW, 38);
+          ctx.fillStyle = '#1e3a8a';
+          ctx.fillRect(padX, curY, 6, 38);
+          ctx.textAlign = 'left';
+          ctx.font = 'bold 19px "Microsoft JhengHei", sans-serif';
+          ctx.fillStyle = '#0f172a';
+          ctx.fillText(`📄 第 ${p.version} 期條件明細（${p.startDate || '-'} ~ ${p.endDate || '-'}）`, padX + 16, curY + 26);
+          ctx.textAlign = 'right';
+          ctx.font = 'bold 16px "Microsoft JhengHei", sans-serif';
+          ctx.fillStyle = '#0369a1';
+          ctx.fillText(`${p.status} ｜ ${p.contractType}`, padX + contentW - 14, curY + 25);
+          ctx.textAlign = 'left';
+          curY += 38;
+
+          // 期別條件摘要框 (4行)
+          ctx.fillStyle = '#f8fafc';
+          ctx.fillRect(padX, curY, contentW, 114);
+          ctx.strokeStyle = '#cbd5e1';
+          ctx.strokeRect(padX, curY, contentW, 114);
+          ctx.font = '16px "Microsoft JhengHei", sans-serif';
+          ctx.fillStyle = '#334155';
+          ctx.fillText(`合約編號：${ded.contractNo || '-'}   ｜   正式營運：${p.opStartDate || '-'} ~ ${p.opEndDate || '-'}   ｜   櫃位/樓層：${p.boothNo} / ${p.floor}`, padX + 14, curY + 26);
+          ctx.fillText(`業種分類：${p.industry}   ｜   抽成模式：${c.commType}（${c.commCat} / ${c.taxType}）`, padX + 14, curY + 52);
+          ctx.fillText(`抽成費率矩陣：${rateSummary}`, padX + 14, curY + 78);
+          ctx.fillStyle = '#1e3a8a';
+          ctx.font = 'bold 16px "Microsoft JhengHei", sans-serif';
+          ctx.fillText(`期間實績：${perf.monthCount} 個月  ｜  銷售淨額 NT$ ${perf.totalSales.toLocaleString()}  ｜  抽成 NT$ ${perf.totalComm.toLocaleString()}  ｜  實扣 NT$ ${perf.totalDeduct.toLocaleString()}${perf.shortfallCount > 0 ? '  ｜  🔴 未達包底 ' + perf.shortfallCount + ' 個月' : ''}`, padX + 14, curY + 102);
+          curY += 120;
+
+          // 該期扣款明細表
+          drawPeriodTableHeader();
+          if (ded.items && ded.items.length > 0) {
+            ded.items.forEach((item, idx) => {
+              if (curY + 34 > maxPageY) {
+                startNewPdfPage(`第 ${p.version} 期扣款明細 (續)`);
+                drawPeriodTableHeader();
+              }
+              ctx.fillStyle = idx % 2 === 1 ? '#f8fafc' : '#ffffff';
+              ctx.fillRect(padX, curY, contentW, 32);
+              ctx.strokeStyle = '#e2e8f0';
+              ctx.strokeRect(padX, curY, contentW, 32);
+
+              let cx = padX;
+              ctx.font = 'bold 16px "Microsoft JhengHei", sans-serif';
+              ctx.fillStyle = '#1e293b';
+              ctx.fillText(String(item.name || '').slice(0, 20), cx + 12, curY + 22);
+              cx += cols3[0].w;
+
+              ctx.font = 'bold 16px "Microsoft JhengHei", sans-serif';
+              ctx.fillStyle = '#2563eb';
+              ctx.fillText(`NT$ ${(item.amount || 0).toLocaleString()}`, cx + 12, curY + 22);
+              cx += cols3[1].w;
+
+              ctx.font = '15px "Microsoft JhengHei", sans-serif';
+              ctx.fillStyle = '#475569';
+              ctx.fillText(String(item.note || '-').slice(0, 40), cx + 12, curY + 22);
+              curY += 32;
+            });
+
+            if (curY + 34 > maxPageY) {
+              startNewPdfPage(`第 ${p.version} 期扣款明細 (續)`);
+              drawPeriodTableHeader();
+            }
+            ctx.fillStyle = '#f1f5f9';
+            ctx.fillRect(padX, curY, contentW, 32);
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.strokeRect(padX, curY, contentW, 32);
+            ctx.font = 'bold 16px "Microsoft JhengHei", sans-serif';
+            ctx.fillStyle = '#0f172a';
+            ctx.fillText(`第 ${p.version} 期扣款合計（基準月：${ded.refMonth || '-'}）`, padX + 12, curY + 22);
+            ctx.fillStyle = '#1e3a8a';
+            ctx.fillText(`NT$ ${(ded.total || 0).toLocaleString()}`, padX + cols3[0].w + 12, curY + 22);
+            ctx.font = '15px "Microsoft JhengHei", sans-serif';
+            ctx.fillStyle = '#475569';
+            ctx.fillText(ded.contractNo ? `合約號：${ded.contractNo}` : '月固定/期間均攤合計', padX + cols3[0].w + cols3[1].w + 12, curY + 22);
+            curY += 32;
+          } else {
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(padX, curY, contentW, 32);
+            ctx.strokeStyle = '#e2e8f0';
+            ctx.strokeRect(padX, curY, contentW, 32);
+            ctx.textAlign = 'center';
+            ctx.font = '15px "Microsoft JhengHei", sans-serif';
+            ctx.fillStyle = '#94a3b8';
+            ctx.fillText('此合約期間無匹配之扣款明細紀錄', padX + contentW / 2, curY + 22);
+            ctx.textAlign = 'left';
+            curY += 32;
+          }
+
+          curY += 20;
+        });
+      } else {
+        ensurePageSpace(120, '合約扣款設定明細');
+        ctx.textAlign = 'left';
+        ctx.font = 'bold 21px "Microsoft JhengHei", sans-serif';
+        ctx.fillStyle = '#1e293b';
+        ctx.fillText(`📌 最後一份合約扣款設定明細 (基準月份：${d.terms.latestContractMonth || '最新期別'}，合計：NT$ ${(d.terms.latestDeductionTotal || 0).toLocaleString()})`, padX, curY);
+        curY += 16;
+        drawPeriodTableHeader();
+        const deductItems = (d.terms.latestDeductions || []);
+        deductItems.forEach((item, idx) => {
+          if (curY + 34 > maxPageY) {
+            startNewPdfPage('合約扣款設定明細 (續)');
+            drawPeriodTableHeader();
+          }
+          ctx.fillStyle = idx % 2 === 1 ? '#f8fafc' : '#ffffff';
+          ctx.fillRect(padX, curY, contentW, 32);
+          ctx.strokeStyle = '#e2e8f0';
+          ctx.strokeRect(padX, curY, contentW, 32);
+
+          let cx = padX;
+          ctx.font = 'bold 17px "Microsoft JhengHei", sans-serif';
+          ctx.fillStyle = '#1e293b';
+          ctx.fillText(item.name, cx + 12, curY + 22);
+          cx += cols3[0].w;
+
+          ctx.font = 'bold 17px "Microsoft JhengHei", sans-serif';
+          ctx.fillStyle = '#2563eb';
+          ctx.fillText(`NT$ ${item.amount.toLocaleString()}`, cx + 12, curY + 22);
+          cx += cols3[1].w;
+
+          ctx.font = '16px "Microsoft JhengHei", sans-serif';
+          ctx.fillStyle = '#475569';
+          ctx.fillText(item.note || '最後合約約定設定', cx + 12, curY + 22);
+
+          curY += 32;
+        });
+      }
+
+      // 7. 頁尾 (套用至每一頁) 與轉檔輸出
       const pdfDoc = await window.PDFLib.PDFDocument.create();
-      const page = pdfDoc.addPage([595.28, 841.89]);
-      const pngImage = await pdfDoc.embedPng(pngBytes);
-      page.drawImage(pngImage, {
-        x: 0,
-        y: 0,
-        width: 595.28,
-        height: 841.89
-      });
+      const totalPages = pagesCanvases.length;
+      const genDateStr = new Date().toISOString().substring(0, 10);
+
+      for (let pi = 0; pi < totalPages; pi++) {
+        const pObj = pagesCanvases[pi];
+        pObj.ctx.textAlign = 'center';
+        pObj.ctx.font = '16px "Microsoft JhengHei", sans-serif';
+        pObj.ctx.fillStyle = '#94a3b8';
+        pObj.ctx.fillText(`第 ${pi + 1} / ${totalPages} 頁 ｜ Minerva-ETL 系統自動產生 ｜ 機密文件請勿外流 ｜ 產生時間：${genDateStr}`, W / 2, 1660);
+
+        const pngUrl = pObj.canvas.toDataURL('image/png');
+        const binStr = atob(pngUrl.split(',')[1]);
+        const pngBytes = new Uint8Array(binStr.length);
+        for (let i = 0; i < binStr.length; i++) pngBytes[i] = binStr.charCodeAt(i);
+
+        const page = pdfDoc.addPage([595.28, 841.89]);
+        const pngImage = await pdfDoc.embedPng(pngBytes);
+        page.drawImage(pngImage, {
+          x: 0,
+          y: 0,
+          width: 595.28,
+          height: 841.89
+        });
+      }
 
       let downloadBytes = await pdfDoc.save();
       if (isEnc) {
