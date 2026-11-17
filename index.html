@@ -327,6 +327,10 @@
 
       <!-- 第三列：操作按鈕區（水平對齊平鋪） -->
       <div class="step2-actions">
+        <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; color: #334155; font-weight: 600; user-select: none; margin-right: auto; background: #f8fafc; padding: 7px 12px; border: 1px solid var(--border); border-radius: 6px;">
+          <input type="checkbox" id="chkIncludeAdvisory" checked style="cursor: pointer; width: auto; margin: 0;">
+          PDF / HTML 輸出「建議續約說明」
+        </label>
         <button class="btn btn-pdf" id="btnExportPdf" disabled>📄 下載 LINE 加密 PDF</button>
         <button class="btn btn-mobile" id="btnExportMobile" disabled>📱 匯出高管手機加密報告 (HTML)</button>
         <button class="btn btn-primary" id="btnExportExcel" disabled>📥 匯出 Excel 報表</button>
@@ -774,8 +778,7 @@ function computeLeasingAdvisory(dossierMeta, terms, financials, counterContracts
   // 4. 決策矩陣與談判籌碼精算
   let renewalAction = '';
   let commissionStrategy = '';
-  let recommendedBaseRate = currentBaseRate;
-  let rateChangeDelta = 0;
+  let rateAdjustmentLabel = '建議維持現行費率 (0%)';
   let recommendedTierRule = '';
   let recommendedBaseRent = 0;
   let negotiationPoints = [];
@@ -786,38 +789,35 @@ function computeLeasingAdvisory(dossierMeta, terms, financials, counterContracts
       if (shortfallCount === 0) {
         // 100% 達標強勢櫃
         renewalAction = '【強烈建議續約】(包底全期達標，爭取調升條件)';
-        rateChangeDelta = 1.0;
-        recommendedBaseRate = currentBaseRate > 0 ? (currentBaseRate + rateChangeDelta) : 16.0;
-        commissionStrategy = '調升基準抽成 + 等比提高包底門檻';
-        recommendedBaseRent = Math.round(avgMonthlySales * (recommendedBaseRate / 100) * 0.85);
-        recommendedTierRule = `建議正品抽成由 ${currentBaseRate}% 調升至 ${recommendedBaseRate}% (+1.0%)；月包底調升至 NT$ ${recommendedBaseRent.toLocaleString()}`;
+        rateAdjustmentLabel = '建議小幅調升 (+0.5% ~ +1.0%)';
+        commissionStrategy = '小幅調升基準抽成 + 等比提高包底門檻';
+        recommendedBaseRent = Math.round(avgMonthlySales * ((currentBaseRate || 15) / 100) * 0.85);
+        recommendedTierRule = `現行基準 ${currentBaseRate > 0 ? currentBaseRate + '%' : '依約定'} 建議小幅調升 (+0.5% ~ +1.0%)；月包底調升至 NT$ ${recommendedBaseRent.toLocaleString()}`;
         negotiationPoints = [
           `專櫃在評估期間累計銷售達 NT$ ${totalSales.toLocaleString()}，全期 ${monthCount} 個月 0 次觸發包底，具備自然集客與營收實力。`,
-          `因營運表現優良且無保底不足風險，建議爭取基準抽成調升 1.0%（由 ${currentBaseRate}% 調至 ${recommendedBaseRate}%）。`,
+          `因營運表現優良且無保底不足風險，建議爭取基準抽成小幅調升 +0.5% ~ +1.0%。`,
           `建議調升新月包底門檻至 NT$ ${recommendedBaseRent.toLocaleString()}，鎖定商場至少 85% 預期抽成收益。`
         ];
       } else if (shortfallCount <= 2) {
         // 偶發未達標 (1~2次)
         renewalAction = '【建議續約】(偶發未達包底，改採激勵型雙階梯)';
-        rateChangeDelta = 0;
-        recommendedBaseRate = currentBaseRate;
+        rateAdjustmentLabel = '維持基準抽成，超額微幅讓利 (-0.5% ~ -1.0%)';
         commissionStrategy = '改採激勵型雙階梯抽成 (降包底促銷型)';
         const threshold = Math.round(avgMonthlySales * 1.05);
         recommendedBaseRent = Math.round(avgMonthlySales * (currentBaseRate / 100) * 0.75);
-        recommendedTierRule = `月營收 <= NT$ ${threshold.toLocaleString()} 時維持 ${currentBaseRate}%；超過部分優惠抽成 ${(currentBaseRate - 1)}% (-1.0%) 激勵衝高業績`;
+        recommendedTierRule = `月營收 <= NT$ ${threshold.toLocaleString()} 時維持現行基準；超過部分提供優惠抽成 (-0.5% ~ -1.0%) 激勵衝高業績`;
         negotiationPoints = [
           `專櫃全期共 ${shortfallCount} 個月未達包底門檻（累計補足差額 NT$ ${totalShortfallAmt.toLocaleString()}），受淡旺季或檔期波動影響。`,
           `建議將固定月包底適度調降至 NT$ ${recommendedBaseRent.toLocaleString()}，降低廠商淡季沈重負擔。`,
-          `改採『超額階梯抽成』模式：超過月均目標（NT$ ${threshold.toLocaleString()}）以上營收讓利 1.0%，激勵專櫃積極參與商場聯合促銷。`
+          `改採『超額階梯抽成』模式：超過月均目標（NT$ ${threshold.toLocaleString()}）以上營收讓利 0.5% ~ 1.0%，激勵專櫃積極參與商場聯合促銷。`
         ];
       } else {
         // 頻繁未達標 (>= 3 次)
         renewalAction = '【建議附條件續約或評估換櫃】(多次未達包底)';
-        rateChangeDelta = 0;
-        recommendedBaseRate = currentBaseRate;
-        commissionStrategy = '維持原抽成，但要求縮減承租坪數或縮短合約期';
+        rateAdjustmentLabel = '建議重新議定（抽成 ±0% ~ +1.0% 並重談包底/坪數）';
+        commissionStrategy = '重新議定抽成與包底條件，或縮減承租坪數/縮短合約期';
         recommendedBaseRent = Math.round(avgMonthlySales * (currentBaseRate / 100) * 0.7);
-        recommendedTierRule = `維持基準費率 ${currentBaseRate}%，新月包底依近半年月均下修為 NT$ ${recommendedBaseRent.toLocaleString()}，並附加業績考核條款`;
+        recommendedTierRule = `重新議定抽成級距（±0% ~ +1.0%），新月包底依近半年月均下修為 NT$ ${recommendedBaseRent.toLocaleString()}，並附加業績考核條款`;
         negotiationPoints = [
           `專櫃全期有 ${shortfallCount} 個月未達包底門檻（累計補足差額達 NT$ ${totalShortfallAmt.toLocaleString()}），營運動能疲軟。`,
           storeAreaNum > 0
@@ -830,22 +830,20 @@ function computeLeasingAdvisory(dossierMeta, terms, financials, counterContracts
       // === 類別 II: 一般抽成型專櫃 (純% / 無包底) ===
       if (isGrowing && effectiveTakeRate >= 14) {
         renewalAction = '【強烈建議續約】(營收正向成長，抽成貢獻健康)';
-        rateChangeDelta = 0.5;
-        recommendedBaseRate = currentBaseRate + rateChangeDelta;
-        commissionStrategy = '調升基準抽成費率';
-        recommendedTierRule = `建議正品由 ${currentBaseRate}% 微調至 ${recommendedBaseRate}% (+0.5%)`;
+        rateAdjustmentLabel = '建議微幅調升 (0% ~ +0.5%)';
+        commissionStrategy = '微幅調升基準抽成費率';
+        recommendedTierRule = `建議基準抽成微幅調升 (0% ~ +0.5%)`;
         negotiationPoints = [
           `專櫃累計營收達 NT$ ${totalSales.toLocaleString()}，且後半期營收較前半期成長 ${growthRate}%，動能強勁。`,
           `實質綜合抽成率達 ${effectiveTakeRate.toFixed(1)}%，對商場收益貢獻度高。`,
-          `建議續約時將基準費率微調 +0.5%，並爭取配合大型檔期特別贊助。`
+          `建議續約時將基準費率微幅調升 0% ~ +0.5%，並爭取配合大型檔期特別贊助。`
         ];
       } else if (isDeclining) {
         renewalAction = '【建議附條件續約】(營收呈現衰退，需加強考核)';
-        rateChangeDelta = 0;
-        recommendedBaseRate = currentBaseRate;
-        commissionStrategy = '增訂月包底門檻或改換次級櫃位';
+        rateAdjustmentLabel = '建議重新議定（-0.5% ~ 0% 並增訂月包底）';
+        commissionStrategy = '重新議定抽成條件，增訂月包底門檻或改換次級櫃位';
         recommendedBaseRent = Math.round(avgMonthlySales * (currentBaseRate / 100) * 0.8);
-        recommendedTierRule = `費率維持 ${currentBaseRate}%，但強制增訂每月最低保底抽成 NT$ ${recommendedBaseRent.toLocaleString()}`;
+        recommendedTierRule = `重新議定抽成費率（-0.5% ~ 0%），並強制增訂每月最低保底抽成 NT$ ${recommendedBaseRent.toLocaleString()}`;
         negotiationPoints = [
           `專櫃後半期營收衰退達 ${Math.abs(growthRate)}%（月均營收降至 NT$ ${avgMonthlySales.toLocaleString()}）。`,
           `為保障商場基本租金收益，新約建議增設每月最低包底 NT$ ${recommendedBaseRent.toLocaleString()}，避免商場營運空轉。`,
@@ -853,10 +851,9 @@ function computeLeasingAdvisory(dossierMeta, terms, financials, counterContracts
         ];
       } else {
         renewalAction = '【建議平順續約】(業績平穩，優化固定扣款)';
-        rateChangeDelta = 0;
-        recommendedBaseRate = currentBaseRate;
+        rateAdjustmentLabel = '建議維持現行費率 (0%)';
         commissionStrategy = '維持抽成費率，調增公攤水電管銷費用';
-        recommendedTierRule = `維持現行費率 ${currentBaseRate}%，固定代扣管銷款調增 3%~5%`;
+        recommendedTierRule = `維持現行費率（0% 調整），固定代扣管銷款調增 3%~5%`;
         negotiationPoints = [
           `專櫃全期營收穩定（月均銷貨約 NT$ ${avgMonthlySales.toLocaleString()}），屬平穩合作租戶。`,
           `目前月均實扣款約 NT$ ${avgMonthlyDeductions.toLocaleString()}，建議下一期微調水電空調分攤費以反映成本上升。`,
@@ -868,11 +865,10 @@ function computeLeasingAdvisory(dossierMeta, terms, financials, counterContracts
     // === 類別 III: 無月結營收數據 (僅有代扣明細或合約檔) ===
     if (versionCount >= 3) {
       renewalAction = '【建議平順續約】(長期合作租戶，建議優化費用結算)';
-      rateChangeDelta = 0.5;
-      recommendedBaseRate = currentBaseRate > 0 ? (currentBaseRate + 0.5) : 15.5;
-      commissionStrategy = '維持合作，調增固定代扣款項';
+      rateAdjustmentLabel = '建議維持或微幅調升 (0% ~ +0.5%)';
+      commissionStrategy = '維持合作，微幅調整條件並調增固定代扣款項';
       recommendedBaseRent = avgMonthlyDeductions > 0 ? Math.round(avgMonthlyDeductions * 1.5) : 0;
-      recommendedTierRule = `建議抽成維持現狀；代扣費用依營運物價調增 3%~5%`;
+      recommendedTierRule = `建議抽成維持現狀或微調 (0% ~ +0.5%)；代扣費用依營運物價調增 3%~5%`;
       negotiationPoints = [
         `該專櫃在商場已歷經 ${versionCount} 期合約，屬於長期穩定租戶，履約與每月費用繳納紀錄良好（月均扣款 NT$ ${avgMonthlyDeductions.toLocaleString()}）。`,
         `建議優化公攤水電與清潔維護費率，以反映商場實際運維成本。`,
@@ -880,7 +876,7 @@ function computeLeasingAdvisory(dossierMeta, terms, financials, counterContracts
       ];
     } else {
       renewalAction = '【建議續約觀望】(需重新審定營業目標)';
-      recommendedBaseRate = currentBaseRate;
+      rateAdjustmentLabel = '建議暫維持現行，待補數據後重新議定 (0%)';
       commissionStrategy = '短期 1 年續約 + 設立營業額考核目標';
       recommendedTierRule = `簽署 1 年期合約並設立月度營收檢核標準`;
       negotiationPoints = [
@@ -891,8 +887,7 @@ function computeLeasingAdvisory(dossierMeta, terms, financials, counterContracts
   }
 
   const curR = currentBaseRate > 0 ? `${currentBaseRate}%` : '未載明';
-  const recR = recommendedBaseRate > 0 ? `${recommendedBaseRate}%` : '未載明';
-  const rDelta = rateChangeDelta > 0 ? `+${rateChangeDelta}%` : (rateChangeDelta < 0 ? `${rateChangeDelta}%` : '持平 (0%)');
+  const rateDisplay = curR !== '未載明' ? `現行 ${curR} ｜ ${rateAdjustmentLabel}` : rateAdjustmentLabel;
   const baseRentStr = recommendedBaseRent > 0 ? `NT$ ${recommendedBaseRent.toLocaleString()} / 月` : '依現行約定';
 
   return {
@@ -901,10 +896,11 @@ function computeLeasingAdvisory(dossierMeta, terms, financials, counterContracts
     strategy: commissionStrategy,
     currentBaseRate: curR,
     currentRate: curR,
-    recommendedBaseRate: recR,
-    recRate: recR,
-    rateChangeDelta: rDelta,
-    rateChange: rDelta,
+    recommendedBaseRate: rateAdjustmentLabel,
+    recRate: rateAdjustmentLabel,
+    rateChangeDelta: rateAdjustmentLabel,
+    rateChange: rateAdjustmentLabel,
+    rateDisplay,
     recommendedTierRule,
     recommendedBaseRent: baseRentStr,
     recBaseRent: baseRentStr,
@@ -950,20 +946,80 @@ function matchCommissionForPeriod(commRows, pStartDate, pEndDate) {
     }
   }
   const row = matched || commRows[0];
-  const baseRate = safeNum(row['正品']);
-  const rate90 = safeNum(row['90折']) || (baseRate > 0 ? baseRate - 1 : 0);
-  const rate80 = safeNum(row['80折']) || (baseRate > 0 ? baseRate - 2 : 0);
   return {
     commType: row['抽成別'] || '一般抽成',
     commCat: row['抽成類別名稱'] || '標準抽成',
     taxType: row['稅別'] || '-',
-    baseRate,
-    rate90,
-    rate80,
+    baseRate: safeNum(row['正品']),
+    rate90: safeNum(row['90折']),
+    rate80: safeNum(row['80折']),
     rate70: safeNum(row['70折']),
     rate60: safeNum(row['60折']),
     rate50: safeNum(row['50折']),
     specialRate: safeNum(row['特價'])
+  };
+}
+
+function formatRateSummary(c) {
+  if (!c) return '未設定';
+  const parts = [];
+  if (c.baseRate > 0) parts.push(`正品 ${c.baseRate}%`);
+  if (c.rate90 > 0) parts.push(`90折 ${c.rate90}%`);
+  if (c.rate80 > 0) parts.push(`80折 ${c.rate80}%`);
+  if (c.rate70 > 0) parts.push(`70折 ${c.rate70}%`);
+  if (c.rate60 > 0) parts.push(`60折 ${c.rate60}%`);
+  if (c.rate50 > 0) parts.push(`50折 ${c.rate50}%`);
+  if (c.specialRate > 0) parts.push(`特價 ${c.specialRate}%`);
+  return parts.length > 0 ? parts.join(' ｜ ') : '未設定（依實際結帳為準）';
+}
+
+function deduceBaseRentInfo(recs, commType) {
+  const sfVals = (recs || [])
+    .filter(r => (r.baseRentShortfall || 0) > 0)
+    .map(r => Math.round((r.comm_total || 0) + (r.baseRentShortfall || 0)))
+    .filter(v => v > 0);
+
+  if (sfVals.length > 0) {
+    const sorted = [...sfVals].sort((a, b) => a - b);
+    const minV = sorted[0];
+    const maxV = sorted[sorted.length - 1];
+    const medianV = sorted[Math.floor(sorted.length / 2)];
+    const untaxedMedian = Math.round(medianV / 1.05);
+    const isRange = (maxV - minV) > 100;
+    const text = isRange
+      ? `約 NT$ ${minV.toLocaleString()} ~ ${maxV.toLocaleString()} / 月 (含稅，中位數未稅約 NT$ ${untaxedMedian.toLocaleString()})`
+      : `NT$ ${medianV.toLocaleString()} / 月 (含稅，未稅約 NT$ ${untaxedMedian.toLocaleString()})`;
+    return {
+      hasBaseRent: true,
+      deduced: true,
+      amountInclTax: medianV,
+      amountUntaxed: untaxedMedian,
+      sampleCount: sfVals.length,
+      displayText: text,
+      note: `依 ${sfVals.length} 個未達包底月份（實績抽成＋包底不足額）反推`
+    };
+  }
+
+  if (String(commType || '').includes('包底')) {
+    return {
+      hasBaseRent: true,
+      deduced: false,
+      amountInclTax: 0,
+      amountUntaxed: 0,
+      sampleCount: 0,
+      displayText: '有包底約定（期間全數達標）',
+      note: '抽成皆高於包底門檻'
+    };
+  }
+
+  return {
+    hasBaseRent: false,
+    deduced: false,
+    amountInclTax: 0,
+    amountUntaxed: 0,
+    sampleCount: 0,
+    displayText: '無包底條件',
+    note: ''
   };
 }
 
@@ -1002,6 +1058,7 @@ function computeDeductionBreakdown(deductRows, isDetailMatrix, rangeStartYM, ran
 
       const isRuleIgnore = (code, name) => ['Z08', 'Z09', 'TAX'].includes(code) || (code && code.toUpperCase().includes('TAX')) || (name && name.includes('稅額'));
       const isRuleAverage = (code) => ['Z01', 'Z02', 'Z03', 'Z05', 'Z06'].includes(code);
+      const isRulePaymentFee = (code, name) => (code && code.startsWith('D')) || (name && (name.includes('信用卡') || name.includes('第三方支付') || name.includes('三方支付')));
       const isRuleDirectZ04 = (code) => code === 'Z04';
       const isRuleZ07 = (code) => code === 'Z07';
 
@@ -1016,16 +1073,19 @@ function computeDeductionBreakdown(deductRows, isDetailMatrix, rangeStartYM, ran
 
         if (isRuleIgnore(code, name)) return;
 
-        if (isRuleAverage(code)) {
+        if (isRuleAverage(code) || isRulePaymentFee(code, name)) {
           const totalSum = inRangeDeducts.reduce((sum, r) => sum + safeNum(r[rawK]), 0);
           if (totalSum > 0) {
             const avg = Math.round(totalSum / inRangeDeducts.length);
+            const noteText = isRulePaymentFee(code, name)
+              ? `浮動費用・依每月實際用量計算 (期間 ${inRangeDeducts.length} 個月平均，累計 NT$ ${totalSum.toLocaleString()})`
+              : `浮動費用 (期間 ${inRangeDeducts.length} 個月平均，累計 NT$ ${totalSum.toLocaleString()})`;
             items.push({
               code,
               name,
               amount: avg,
               calcType: 'average',
-              note: `浮動費用 (期間 ${inRangeDeducts.length} 個月平均，累計 NT$ ${totalSum.toLocaleString()})`,
+              note: noteText,
               month: refMonth,
               contractNo
             });
@@ -1109,7 +1169,7 @@ function computeDeductionBreakdown(deductRows, isDetailMatrix, rangeStartYM, ran
             name,
             amount: amt,
             calcType: 'direct',
-            note: '合約約定設定',
+            note: '每月固定費用',
             month: refMonth,
             contractNo
           });
@@ -1208,8 +1268,8 @@ function runEvaluation() {
     let baseRate = 0, rate90 = 0, rate80 = 0, commType = '一般抽成';
     if (commRows.length > 0) {
       baseRate = safeNum(commRows[0]['正品']);
-      rate90 = safeNum(commRows[0]['90折']) || (baseRate > 0 ? baseRate - 1 : 0);
-      rate80 = safeNum(commRows[0]['80折']) || (baseRate > 0 ? baseRate - 2 : 0);
+      rate90 = safeNum(commRows[0]['90折']);
+      rate80 = safeNum(commRows[0]['80折']);
       commType = commRows[0]['抽成別'] || '一般抽成';
     }
 
@@ -1380,6 +1440,7 @@ function runEvaluation() {
       const periodComm = periodRecs.reduce((s, r) => s + (r.comm_total || 0), 0);
       const periodDeduct = periodRecs.reduce((s, r) => s + (r.deduct || 0), 0);
       const periodShortfallCount = periodRecs.filter(r => (r.baseRentShortfall || 0) > 0).length;
+      const baseRentInfo = deduceBaseRentInfo(periodRecs, comm.commType);
 
       return {
         version: ver,
@@ -1394,6 +1455,7 @@ function runEvaluation() {
         area: String(c['區域名稱'] || '').trim() || '一般商場',
         industry: String(c['業種名稱'] || c['業種編號'] || '').trim() || industry,
         comm,
+        baseRentInfo,
         deductions,
         performance: {
           monthCount: periodRecs.length,
@@ -1404,6 +1466,8 @@ function runEvaluation() {
         }
       };
     });
+
+    const overallBaseRentInfo = deduceBaseRentInfo(records, commType);
 
     state.dossier = {
       meta: {
@@ -1420,9 +1484,10 @@ function runEvaluation() {
       periodDetails,
       terms: {
         commType,
-        baseRate: baseRate > 0 ? `${baseRate}%` : '15%',
-        rate90: rate90 > 0 ? `${rate90}%` : '14%',
-        rate80: rate80 > 0 ? `${rate80}%` : '13%',
+        baseRate: baseRate > 0 ? `${baseRate}%` : '-',
+        rate90: rate90 > 0 ? `${rate90}%` : '-',
+        rate80: rate80 > 0 ? `${rate80}%` : '-',
+        baseRentInfo: overallBaseRentInfo,
         isDetailMatrix,
         latestContractMonth,
         latestContractNo,
@@ -1463,7 +1528,7 @@ function runEvaluation() {
 
     document.getElementById('heroTarget').innerText = `[${d.meta.counterId}] ${d.meta.counterName} ｜ 第 ${d.meta.selectedVersions.join('、')} 期`;
     document.getElementById('heroAction').innerText = a.renewalAction;
-    document.getElementById('heroRate').innerText = `${a.currentRate} ➔ ${a.recRate} (${a.rateChange})`;
+    document.getElementById('heroRate').innerText = a.rateDisplay || a.recRate;
     document.getElementById('heroBaseRent').innerText = a.recBaseRent;
     document.getElementById('heroStrategy').innerText = a.strategy;
     document.getElementById('heroPointsList').innerHTML = a.points.map(p => `<li>${p}</li>`).join('');
@@ -1482,7 +1547,8 @@ function runEvaluation() {
         ? [['── 勾選合約期別明細 ──', '───────────────'], ...d.meta.periodDescriptions.map(desc => ['• 合約期別', desc])]
         : []),
       ['建議續約方向', a.renewalAction],
-      ['建議抽成調整', `${a.currentRate} ➔ ${a.recRate} (${a.rateChange})`],
+      ['建議抽成調整', a.rateDisplay || a.recRate],
+      ['推算現行月包底額', d.terms.baseRentInfo ? `${d.terms.baseRentInfo.displayText}${d.terms.baseRentInfo.note ? '（' + d.terms.baseRentInfo.note + '）' : ''}` : '無包底條件'],
       ['建議月保底額', a.recBaseRent],
       ['最後合約扣款基準月', d.terms.latestContractMonth ? `${d.terms.latestContractMonth} (合約號: ${d.terms.latestContractNo || '無'})` : '無'],
       ['最新合約月扣款合計', d.terms.latestDeductionTotal ? `NT$ ${d.terms.latestDeductionTotal.toLocaleString()}` : '無']
@@ -1503,12 +1569,8 @@ function runEvaluation() {
           const ded = p.deductions || { items: [], total: 0, refMonth: '', contractNo: '' };
           const perf = p.performance || { monthCount: 0, totalSales: 0, totalComm: 0, totalDeduct: 0, shortfallCount: 0 };
 
-          const extraRates = [];
-          if (c.rate70 > 0) extraRates.push(`70折 ${c.rate70}%`);
-          if (c.rate60 > 0) extraRates.push(`60折 ${c.rate60}%`);
-          if (c.rate50 > 0) extraRates.push(`50折 ${c.rate50}%`);
-          if (c.specialRate > 0) extraRates.push(`特價 ${c.specialRate}%`);
-          const rateSummary = `正品 ${c.baseRate > 0 ? c.baseRate + '%' : '-'} ｜ 90折 ${c.rate90 > 0 ? c.rate90 + '%' : '-'} ｜ 80折 ${c.rate80 > 0 ? c.rate80 + '%' : '-'}${extraRates.length ? ' ｜ ' + extraRates.join(' ｜ ') : ''}`;
+          const rateSummary = formatRateSummary(c);
+          const br = p.baseRentInfo || { displayText: '無包底條件', note: '' };
 
           const dedRowsHtml = ded.items && ded.items.length > 0
             ? ded.items.map(item => `
@@ -1538,6 +1600,7 @@ function runEvaluation() {
                 <div><strong>業種分類：</strong>${p.industry}</div>
                 <div><strong>抽成模式 / 稅別：</strong>${c.commType}（${c.commCat} / ${c.taxType}）</div>
                 <div style="grid-column: 1 / -1;"><strong>抽成費率矩陣：</strong>${rateSummary}</div>
+                <div style="grid-column: 1 / -1;"><strong>推算月包底金額：</strong><span style="color:#1e3a8a; font-weight:700;">${br.displayText}</span>${br.note ? ' <span style="color:#64748b; font-size:12px;">（' + br.note + '）</span>' : ''}</div>
                 <div><strong>期間涵蓋月數：</strong>${perf.monthCount} 個月</div>
                 <div><strong>期間銷售淨額 (未稅)：</strong>NT$ ${perf.totalSales.toLocaleString()}</div>
                 <div><strong>期間抽成總額 (含稅)：</strong>NT$ ${perf.totalComm.toLocaleString()}</div>
@@ -1587,7 +1650,7 @@ function runEvaluation() {
     ]);
   }
 
-  function buildYoYChartInfo(d) {
+  function buildYoYChartInfo(d, barHeightScale = 1) {
     const records = (d.records || []).slice(-12);
     if (!records || records.length === 0) return null;
     const hist = d.allHistoryMap || {};
@@ -1642,9 +1705,9 @@ function runEvaluation() {
     const maxVal = Math.max(1, ...chartData.flatMap(c => [c.curSales, c.curDed, c.curMall, c.prevSales || 0, c.prevMall || 0]));
     const colW = 72;
     const svgW = Math.max(640, chartData.length * colW + 40);
-    const svgH = 180;
-    const baseY = 144;
-    const maxH = 108;
+    const maxH = Math.round(108 * barHeightScale);
+    const baseY = 36 + maxH;
+    const svgH = baseY + 36;
 
     // 淡灰水平參考格線
     let gridHtml = '';
@@ -1741,7 +1804,7 @@ function runEvaluation() {
       ['專櫃編號', d.meta.counterId, '專櫃名稱', d.meta.counterName],
       ['納入期別', '第 ' + d.meta.selectedVersions.join('、') + ' 期'],
       ['建議續約結論', a.renewalAction],
-      ['抽成調整建議', `${a.currentRate} ➔ ${a.recRate} (${a.rateChange})`],
+      ['抽成調整建議', a.rateDisplay || a.recRate],
       ['建議月保底額', a.recBaseRent],
       ['', '', ''],
       [`【最後一份合約扣款設定明細 (基準月：${d.terms.latestContractMonth || '最新期別'}，合計：NT$ ${(d.terms.latestDeductionTotal || 0).toLocaleString()})】`, '', ''],
@@ -1762,7 +1825,9 @@ function runEvaluation() {
         const perf = p.performance || { monthCount: 0, totalSales: 0, totalComm: 0, totalDeduct: 0, shortfallCount: 0 };
         s1Rows.push(['', '', '']);
         s1Rows.push([`【第 ${p.version} 期條件明細 (${p.status})】`, `${p.startDate} ~ ${p.endDate}`, ded.contractNo ? `合約號：${ded.contractNo}` : '']);
-        s1Rows.push(['抽成模式 / 稅別', `${c.commType} (${c.commCat} / ${c.taxType})`, `正品 ${c.baseRate || '-'}% / 90折 ${c.rate90 || '-'}% / 80折 ${c.rate80 || '-'}%`]);
+        const br = p.baseRentInfo || { displayText: '無包底條件', note: '' };
+        s1Rows.push(['抽成模式 / 稅別', `${c.commType} (${c.commCat} / ${c.taxType})`, formatRateSummary(c)]);
+        s1Rows.push(['推算月包底金額', br.displayText, br.note || '-']);
         s1Rows.push(['期間營運摘要', `${perf.monthCount} 個月 | 銷售淨額 NT$ ${perf.totalSales.toLocaleString()}`, `抽成 NT$ ${perf.totalComm.toLocaleString()} | 實扣 NT$ ${perf.totalDeduct.toLocaleString()}`]);
         if (ded.items && ded.items.length > 0) {
           s1Rows.push(['扣款項目名稱', '設定/月均金額 (元)', '性質與計算備註']);
@@ -1785,7 +1850,7 @@ function runEvaluation() {
       ['專櫃合約評估報告 - 【續約建議評分卡】'],
       ['決策建議方向', a.renewalAction],
       ['抽成模式策略', a.strategy],
-      ['建議抽成調幅', `${a.currentRate} ➔ ${a.recRate}`],
+      ['建議抽成調幅', a.rateDisplay || a.recRate],
       ['建議月包底金額', a.recBaseRent],
       ['談判要點 1', a.points[0] || ''],
       ['談判要點 2', a.points[1] || '']
@@ -1826,6 +1891,7 @@ function runEvaluation() {
   document.getElementById('btnExportMobile').addEventListener('click', async () => {
     if (!state.dossier || !state.advisory) return;
     const isEnc = document.getElementById('chkEncrypt').checked;
+    const includeAdvisory = document.getElementById('chkIncludeAdvisory') ? document.getElementById('chkIncludeAdvisory').checked : true;
     const pwd = document.getElementById('reportPassword').value.trim();
     if (isEnc && !pwd) {
       alert('⚠️ 已啟用加密保護，請先輸入解鎖密碼！');
@@ -1845,17 +1911,18 @@ function runEvaluation() {
         <div class="m-header">
           <div class="m-badge">高管機密決策簡報</div>
           <h1 class="m-title">[${d.meta.counterId}] ${d.meta.counterName}</h1>
-          <div class="m-sub">所屬樓層：${d.meta.floor || '未填寫'} ｜ 業種：${d.meta.industry || '一般專櫃'} ｜ 面積：${d.meta.storeArea || '15 坪'}</div>
+          <div class="m-sub">所屬樓層：${d.meta.floor || '未填寫'} ｜ 業種：${d.meta.industry || '一般專櫃'}${d.meta.storeArea ? ` ｜ 面積：${d.meta.storeArea}` : ''}</div>
           <div class="m-period">評估期別：第 ${d.meta.selectedVersions.join('、')} 期 (${d.meta.startDate} ~ ${d.meta.endDate})</div>
         </div>
 
+        ${includeAdvisory ? `
         <div class="m-card decision-card">
           <div class="d-label">招商決策建議結論</div>
           <div class="d-val">${a.renewalAction}</div>
           <div class="d-grid">
             <div class="d-item">
               <span class="d-sublabel">建議抽成調整</span>
-              <strong class="d-highlight">${a.currentRate} ➔ ${a.recRate} (${a.rateChange})</strong>
+              <strong class="d-highlight" style="font-size:13px;">${a.rateDisplay || a.recRate}</strong>
             </div>
             <div class="d-item">
               <span class="d-sublabel">建議月包底金額</span>
@@ -1873,9 +1940,10 @@ function runEvaluation() {
             ${a.points.map(p => `<li>${p}</li>`).join('')}
           </ul>
         </div>
+        ` : ''}
 
         ${(() => {
-          const yoyInfo = buildYoYChartInfo(d);
+          const yoyInfo = buildYoYChartInfo(d, 2.5);
           if (!yoyInfo) return '';
           return `
         <div class="m-card" style="border-top: 3px solid #051c2c;">
@@ -1949,12 +2017,8 @@ function runEvaluation() {
           const c = p.comm || {};
           const ded = p.deductions || { items: [], total: 0, refMonth: '', contractNo: '' };
           const perf = p.performance || { monthCount: 0, totalSales: 0, totalComm: 0, totalDeduct: 0, shortfallCount: 0 };
-          const extraRates = [];
-          if (c.rate70 > 0) extraRates.push(`70折 ${c.rate70}%`);
-          if (c.rate60 > 0) extraRates.push(`60折 ${c.rate60}%`);
-          if (c.rate50 > 0) extraRates.push(`50折 ${c.rate50}%`);
-          if (c.specialRate > 0) extraRates.push(`特價 ${c.specialRate}%`);
-          const rateSummary = `正品 ${c.baseRate > 0 ? c.baseRate + '%' : '-'} ｜ 90折 ${c.rate90 > 0 ? c.rate90 + '%' : '-'} ｜ 80折 ${c.rate80 > 0 ? c.rate80 + '%' : '-'}${extraRates.length ? ' ｜ ' + extraRates.join(' ｜ ') : ''}`;
+          const rateSummary = formatRateSummary(c);
+          const br = p.baseRentInfo || { displayText: '無包底條件', note: '' };
           return `
             <div class="m-card" style="border-left: 4px solid #1e3a8a;">
               <div class="m-sec-title" style="justify-content:space-between; flex-wrap:wrap;">
@@ -1966,6 +2030,7 @@ function runEvaluation() {
                 <div><strong>正式營運：</strong>${p.opStartDate || '-'} ~ ${p.opEndDate || '-'} ｜ <strong>業種：</strong>${p.industry}</div>
                 <div><strong>抽成模式：</strong>${c.commType}（${c.commCat} / ${c.taxType}）</div>
                 <div><strong>費率矩陣：</strong>${rateSummary}</div>
+                <div><strong>月包底金額：</strong><span style="color:#1e3a8a; font-weight:700;">${br.displayText}</span>${br.note ? '（' + br.note + '）' : ''}</div>
                 <div><strong>期間實績：</strong>${perf.monthCount} 個月 ｜ 銷售淨額 NT$ ${perf.totalSales.toLocaleString()} ｜ 抽成 NT$ ${perf.totalComm.toLocaleString()} ｜ 實扣 NT$ ${perf.totalDeduct.toLocaleString()}${perf.shortfallCount > 0 ? ' ｜ 🔴 未達包底 ' + perf.shortfallCount + ' 個月' : ''}</div>
               </div>
               <div class="m-table-wrapper">
@@ -2017,7 +2082,7 @@ function runEvaluation() {
                     <tr>
                       <td style="font-weight:600; white-space:nowrap;">${item.name}</td>
                       <td style="color:#2563eb; font-weight:700; white-space:nowrap;">NT$ ${item.amount.toLocaleString()}</td>
-                      <td style="font-size:11px; color:#475569;">${item.note || item.month || '最新合約約定設定'}</td>
+                      <td style="font-size:11px; color:#475569;">${item.note || item.month || '每月固定費用'}</td>
                     </tr>
                   `).join('') : `
                     <tr>
@@ -2194,6 +2259,7 @@ function runEvaluation() {
   document.getElementById('btnExportPdf').addEventListener('click', async () => {
     if (!state.dossier || !state.advisory) return;
     const isEnc = document.getElementById('chkEncrypt').checked;
+    const includeAdvisory = document.getElementById('chkIncludeAdvisory') ? document.getElementById('chkIncludeAdvisory').checked : true;
     const d = state.dossier;
     const a = state.advisory;
     const cId = d.meta.counterId;
@@ -2248,8 +2314,8 @@ function runEvaluation() {
       ctx.fillStyle = '#bfdbfe';
       const floorStr = d.meta.floor || '未標註';
       const indStr = d.meta.industry || '一般專櫃';
-      const areaStr = d.meta.storeArea || '15 坪';
-      ctx.fillText(`所屬樓層：${floorStr}  ｜  業種：${indStr}  ｜  面積：${areaStr}`, W / 2, 132);
+      const areaStr = d.meta.storeArea ? `  ｜  面積：${d.meta.storeArea}` : '';
+      ctx.fillText(`所屬樓層：${floorStr}  ｜  業種：${indStr}${areaStr}`, W / 2, 132);
 
       // 副標 2：評估期別
       ctx.font = 'bold 20px "Microsoft JhengHei", "PingFang TC", sans-serif';
@@ -2259,51 +2325,56 @@ function runEvaluation() {
       const padX = 72;
       const contentW = W - padX * 2;
 
-      // 2. 核心續約決策卡
-      const cardY = 195;
-      ctx.fillStyle = '#f0f6ff';
-      ctx.strokeStyle = '#bfdbfe';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(padX, cardY, contentW, 160, 10);
-      else ctx.rect(padX, cardY, contentW, 160);
-      ctx.fill();
-      ctx.stroke();
+      let curY = 195;
+      if (includeAdvisory) {
+        // 2. 核心續約決策卡
+        const cardY = 195;
+        ctx.fillStyle = '#f0f6ff';
+        ctx.strokeStyle = '#bfdbfe';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(padX, cardY, contentW, 160, 10);
+        else ctx.rect(padX, cardY, contentW, 160);
+        ctx.fill();
+        ctx.stroke();
 
-      ctx.textAlign = 'left';
-      ctx.font = 'bold 21px "Microsoft JhengHei", sans-serif';
-      ctx.fillStyle = '#1e40af';
-      ctx.fillText('🎯 招商決策建議結論', padX + 24, cardY + 36);
+        ctx.textAlign = 'left';
+        ctx.font = 'bold 21px "Microsoft JhengHei", sans-serif';
+        ctx.fillStyle = '#1e40af';
+        ctx.fillText('🎯 招商決策建議結論', padX + 24, cardY + 36);
 
-      ctx.font = 'bold 27px "Microsoft JhengHei", sans-serif';
-      ctx.fillStyle = '#b91c1c';
-      ctx.fillText(a.renewalAction, padX + 24, cardY + 74);
+        ctx.font = 'bold 27px "Microsoft JhengHei", sans-serif';
+        ctx.fillStyle = '#b91c1c';
+        ctx.fillText(a.renewalAction, padX + 24, cardY + 74);
 
-      ctx.font = 'bold 21px "Microsoft JhengHei", sans-serif';
-      ctx.fillStyle = '#1e293b';
-      ctx.fillText(`抽成調整建議：${a.currentRate} ➔ ${a.recRate} (${a.rateChange})       建議月包底金額：${a.recBaseRent}`, padX + 24, cardY + 114);
+        ctx.font = 'bold 20px "Microsoft JhengHei", sans-serif';
+        ctx.fillStyle = '#1e293b';
+        ctx.fillText(`抽成調整建議：${a.rateDisplay || a.recRate}`, padX + 24, cardY + 110);
 
-      ctx.font = '20px "Microsoft JhengHei", sans-serif';
-      ctx.fillStyle = '#475569';
-      ctx.fillText(`抽成策略模式：${a.strategy}`, padX + 24, cardY + 145);
+        ctx.font = '19px "Microsoft JhengHei", sans-serif';
+        ctx.fillStyle = '#475569';
+        ctx.fillText(`建議月包底金額：${a.recBaseRent}   ｜   抽成策略：${a.strategy}`, padX + 24, cardY + 144);
 
-      // 3. 談判作戰要點
-      let curY = 385;
-      ctx.font = 'bold 22px "Microsoft JhengHei", sans-serif';
-      ctx.fillStyle = '#1e293b';
-      ctx.fillText('💼 招商同仁談判作戰籌碼 (Talking Points)', padX, curY);
+        // 3. 談判作戰要點
+        curY = 385;
+        ctx.font = 'bold 22px "Microsoft JhengHei", sans-serif';
+        ctx.fillStyle = '#1e293b';
+        ctx.fillText('💼 招商同仁談判作戰籌碼 (Talking Points)', padX, curY);
 
-      curY += 28;
-      ctx.font = '19px "Microsoft JhengHei", sans-serif';
-      ctx.fillStyle = '#334155';
-      (a.points || []).slice(0, 3).forEach(p => {
-        const cleanP = p.replace(/^[•\-\s]+/, '');
-        ctx.fillText(`• ${cleanP}`, padX + 16, curY);
         curY += 28;
-      });
+        ctx.font = '19px "Microsoft JhengHei", sans-serif';
+        ctx.fillStyle = '#334155';
+        (a.points || []).slice(0, 3).forEach(p => {
+          const cleanP = p.replace(/^[•\-\s]+/, '');
+          ctx.fillText(`• ${cleanP}`, padX + 16, curY);
+          curY += 28;
+        });
+        curY += 8;
+      } else {
+        ctx.textAlign = 'left';
+      }
 
       // 4. 期間營運財務精算摘要
-      curY += 8;
       ctx.fillStyle = '#f8fafc';
       ctx.strokeStyle = '#e2e8f0';
       ctx.lineWidth = 1.5;
@@ -2323,11 +2394,44 @@ function runEvaluation() {
       const statusSummaryText = d.isBaseRentCounter ? `未達包底：${sfText} (平均未稅抽成率 ${d.avgCommRateUntaxed || '0.0%'})` : `平均未稅抽成率：${d.avgCommRateUntaxed || '0.0%'}`;
       ctx.fillText(`${statusSummaryText}        評估月份數：${d.records.length} 個月        歷史月均實扣：${a.avgMonthlyDeduct}`, padX + 24, curY + 64);
 
-      // 4.5 麥肯錫風格 YoY 視覺圖表 (營收 / 費用 / 總實收 去年同期比)
-      const yoyInfo = buildYoYChartInfo(d);
+      // 初始化自動分頁控制 (供圖表、收支清單與多期明細共用)
+      const pagesCanvases = [{ canvas, ctx }];
+      const maxPageY = 1600;
+
+      const startNewPdfPage = (subTitle) => {
+        const nc = document.createElement('canvas');
+        nc.width = W;
+        nc.height = H;
+        const nctx = nc.getContext('2d');
+        nctx.fillStyle = '#ffffff';
+        nctx.fillRect(0, 0, W, H);
+
+        nctx.fillStyle = '#0f2960';
+        nctx.fillRect(0, 0, W, 64);
+        nctx.textAlign = 'left';
+        nctx.font = 'bold 20px "Microsoft JhengHei", sans-serif';
+        nctx.fillStyle = '#ffffff';
+        nctx.fillText(`[${d.meta.counterId}] ${d.meta.counterName} ｜ ${subTitle || '各勾選期別條件與扣款明細'}`, padX, 40);
+
+        pagesCanvases.push({ canvas: nc, ctx: nctx });
+        ctx = nctx;
+        curY = 92;
+      };
+
+      const ensurePageSpace = (neededH, subTitle) => {
+        if (curY + neededH > maxPageY) {
+          startNewPdfPage(subTitle);
+        }
+      };
+
+      // 4.5 麥肯錫風格 YoY 視覺圖表 (柱狀高度 2.5 倍拉高，寬度不變)
+      curY += 96;
+      const yoyInfo = buildYoYChartInfo(d, 2.5);
       if (yoyInfo && yoyInfo.chartData.length > 0) {
-        curY += 92;
-        const chartBoxH = 148;
+        const cMaxH = 195; // 原 78 * 2.5
+        const chartBoxH = 46 + cMaxH + 26; // 267
+        ensurePageSpace(chartBoxH + 16, '營運指標去年同期比 (YoY)');
+
         ctx.fillStyle = '#ffffff';
         ctx.strokeStyle = '#cbd5e1';
         ctx.lineWidth = 1.5;
@@ -2337,6 +2441,7 @@ function runEvaluation() {
         ctx.fillStyle = '#051c2c';
         ctx.fillRect(padX, curY, contentW, 4);
 
+        ctx.textAlign = 'left';
         ctx.font = 'bold 17px "Microsoft JhengHei", sans-serif';
         ctx.fillStyle = '#051c2c';
         ctx.fillText('📊 評比依據：營收 / 費用 / 商場總實收 去年同期比 (YoY)', padX + 16, curY + 26);
@@ -2347,12 +2452,25 @@ function runEvaluation() {
         ctx.fillText(`${fmtYoyText(yoyInfo.salesYoY, '營收YoY')}   |   ${fmtYoyText(yoyInfo.dedYoY, '費用YoY')}   |   ${fmtYoyText(yoyInfo.mallYoY, '總實收YoY')}`, padX + 530, curY + 26);
 
         const cMax = Math.max(1, ...yoyInfo.chartData.flatMap(c => [c.curSales, c.curDed, c.curMall, c.prevSales || 0, c.prevMall || 0]));
-        const cBaseY = curY + 124;
-        const cMaxH = 78;
+        const cBaseY = curY + 46 + cMaxH;
         const cStep = Math.floor((contentW - 40) / yoyInfo.chartData.length);
 
-        ctx.strokeStyle = '#94a3b8';
+        // 淡灰水平參考虛線 (25% / 50% / 75% / 100%)
+        ctx.save();
+        ctx.strokeStyle = '#e2e8f0';
         ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        [0.25, 0.5, 0.75, 1].forEach(ratio => {
+          const gy = Math.round(cBaseY - cMaxH * ratio);
+          ctx.beginPath();
+          ctx.moveTo(padX + 16, gy);
+          ctx.lineTo(padX + contentW - 16, gy);
+          ctx.stroke();
+        });
+        ctx.restore();
+
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 1.2;
         ctx.beginPath();
         ctx.moveTo(padX + 16, cBaseY);
         ctx.lineTo(padX + contentW - 16, cBaseY);
@@ -2382,13 +2500,13 @@ function runEvaluation() {
 
           ctx.font = '12px "Microsoft JhengHei", sans-serif';
           ctx.fillStyle = '#334155';
-          ctx.fillText(c.month.slice(2), x0 + 6, cBaseY + 15);
+          ctx.fillText(c.month.slice(2), x0 + 6, cBaseY + 17);
         });
-        curY += 62;
+        curY += chartBoxH + 26;
       }
 
       // 5. 近 12 個月收支表格
-      curY += 105;
+      ensurePageSpace(120, '近 12 個月收支與抽成明細');
       ctx.font = 'bold 21px "Microsoft JhengHei", sans-serif';
       ctx.fillStyle = '#1e293b';
       ctx.fillText(d.isBaseRentCounter ? '📅 近 12 個月收支與抽成檢核清單 (銷貨額、抽成額、實扣款項、未達包底與抽成率)' : '📅 近 12 個月收支與抽成明細清單 (銷貨額、抽成額、實扣款項、未稅抽成率)', padX, curY);
@@ -2415,6 +2533,20 @@ function runEvaluation() {
       curY += 32;
       const recentRecords = (d.records || []).slice(-12);
       recentRecords.forEach((r, idx) => {
+        if (curY + 38 > maxPageY) {
+          startNewPdfPage('近 12 個月收支與抽成明細 (續)');
+          ctx.fillStyle = '#1e3a8a';
+          ctx.fillRect(padX, curY, contentW, 32);
+          ctx.textAlign = 'left';
+          ctx.font = 'bold 18px "Microsoft JhengHei", sans-serif';
+          ctx.fillStyle = '#ffffff';
+          let rcx = padX;
+          cols5.forEach(c => {
+            ctx.fillText(c.name, rcx + 12, curY + 23);
+            rcx += c.w;
+          });
+          curY += 32;
+        }
         ctx.fillStyle = idx % 2 === 1 ? '#f8fafc' : '#ffffff';
         ctx.fillRect(padX, curY, contentW, 36);
         ctx.strokeStyle = '#e2e8f0';
@@ -2468,34 +2600,6 @@ function runEvaluation() {
       });
 
       // 6. 各勾選期別條件與扣款明細 (支援自動分頁，避免多期內容裁切)
-      const pagesCanvases = [{ canvas, ctx }];
-      const maxPageY = 1600;
-
-      const startNewPdfPage = (subTitle) => {
-        const nc = document.createElement('canvas');
-        nc.width = W;
-        nc.height = H;
-        const nctx = nc.getContext('2d');
-        nctx.fillStyle = '#ffffff';
-        nctx.fillRect(0, 0, W, H);
-
-        nctx.fillStyle = '#0f2960';
-        nctx.fillRect(0, 0, W, 64);
-        nctx.textAlign = 'left';
-        nctx.font = 'bold 20px "Microsoft JhengHei", sans-serif';
-        nctx.fillStyle = '#ffffff';
-        nctx.fillText(`[${d.meta.counterId}] ${d.meta.counterName} ｜ ${subTitle || '各勾選期別條件與扣款明細'}`, padX, 40);
-
-        pagesCanvases.push({ canvas: nc, ctx: nctx });
-        ctx = nctx;
-        curY = 92;
-      };
-
-      const ensurePageSpace = (neededH, subTitle) => {
-        if (curY + neededH > maxPageY) {
-          startNewPdfPage(subTitle);
-        }
-      };
 
       const cols3 = [
         { name: '扣款項目名稱', w: 280 },
@@ -2531,15 +2635,11 @@ function runEvaluation() {
           const ded = p.deductions || { items: [], total: 0, refMonth: '', contractNo: '' };
           const perf = p.performance || { monthCount: 0, totalSales: 0, totalComm: 0, totalDeduct: 0, shortfallCount: 0 };
 
-          const extraRates = [];
-          if (c.rate70 > 0) extraRates.push(`70折 ${c.rate70}%`);
-          if (c.rate60 > 0) extraRates.push(`60折 ${c.rate60}%`);
-          if (c.rate50 > 0) extraRates.push(`50折 ${c.rate50}%`);
-          if (c.specialRate > 0) extraRates.push(`特價 ${c.specialRate}%`);
-          const rateSummary = `正品 ${c.baseRate > 0 ? c.baseRate + '%' : '-'} ｜ 90折 ${c.rate90 > 0 ? c.rate90 + '%' : '-'} ｜ 80折 ${c.rate80 > 0 ? c.rate80 + '%' : '-'}${extraRates.length ? ' ｜ ' + extraRates.join(' ｜ ') : ''}`;
+          const rateSummary = formatRateSummary(c);
+          const br = p.baseRentInfo || { displayText: '無包底條件', note: '' };
 
           // 預估該期卡片標頭 + 摘要 + 至少表頭與1列空間
-          ensurePageSpace(230, `第 ${p.version} 期條件與扣款明細`);
+          ensurePageSpace(256, `第 ${p.version} 期條件與扣款明細`);
 
           // 期別標題列
           ctx.fillStyle = '#e0f2fe';
@@ -2557,20 +2657,22 @@ function runEvaluation() {
           ctx.textAlign = 'left';
           curY += 38;
 
-          // 期別條件摘要框 (4行)
+          // 期別條件摘要框 (5行)
           ctx.fillStyle = '#f8fafc';
-          ctx.fillRect(padX, curY, contentW, 114);
+          ctx.fillRect(padX, curY, contentW, 140);
           ctx.strokeStyle = '#cbd5e1';
-          ctx.strokeRect(padX, curY, contentW, 114);
+          ctx.strokeRect(padX, curY, contentW, 140);
           ctx.font = '16px "Microsoft JhengHei", sans-serif';
           ctx.fillStyle = '#334155';
           ctx.fillText(`合約編號：${ded.contractNo || '-'}   ｜   正式營運：${p.opStartDate || '-'} ~ ${p.opEndDate || '-'}   ｜   櫃位/樓層：${p.boothNo} / ${p.floor}`, padX + 14, curY + 26);
           ctx.fillText(`業種分類：${p.industry}   ｜   抽成模式：${c.commType}（${c.commCat} / ${c.taxType}）`, padX + 14, curY + 52);
           ctx.fillText(`抽成費率矩陣：${rateSummary}`, padX + 14, curY + 78);
-          ctx.fillStyle = '#1e3a8a';
+          ctx.fillStyle = '#0f2960';
           ctx.font = 'bold 16px "Microsoft JhengHei", sans-serif';
-          ctx.fillText(`期間實績：${perf.monthCount} 個月  ｜  銷售淨額 NT$ ${perf.totalSales.toLocaleString()}  ｜  抽成 NT$ ${perf.totalComm.toLocaleString()}  ｜  實扣 NT$ ${perf.totalDeduct.toLocaleString()}${perf.shortfallCount > 0 ? '  ｜  🔴 未達包底 ' + perf.shortfallCount + ' 個月' : ''}`, padX + 14, curY + 102);
-          curY += 120;
+          ctx.fillText(`推算月包底：${br.displayText}${br.note ? '（' + br.note + '）' : ''}`, padX + 14, curY + 104);
+          ctx.fillStyle = '#1e3a8a';
+          ctx.fillText(`期間實績：${perf.monthCount} 個月  ｜  銷售淨額 NT$ ${perf.totalSales.toLocaleString()}  ｜  抽成 NT$ ${perf.totalComm.toLocaleString()}  ｜  實扣 NT$ ${perf.totalDeduct.toLocaleString()}${perf.shortfallCount > 0 ? '  ｜  🔴 未達包底 ' + perf.shortfallCount + ' 個月' : ''}`, padX + 14, curY + 128);
+          curY += 146;
 
           // 該期扣款明細表
           drawPeriodTableHeader();
@@ -2666,7 +2768,7 @@ function runEvaluation() {
 
           ctx.font = '16px "Microsoft JhengHei", sans-serif';
           ctx.fillStyle = '#475569';
-          ctx.fillText(item.note || '最後合約約定設定', cx + 12, curY + 22);
+          ctx.fillText(item.note || '每月固定費用', cx + 12, curY + 22);
 
           curY += 32;
         });
